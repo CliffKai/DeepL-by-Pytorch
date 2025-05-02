@@ -6,4 +6,4 @@
     - simple-vit
     - vit
 
-  - Transformer[未完结]
+- Transformer[未完结]

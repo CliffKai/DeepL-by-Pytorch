@@ -14,4 +14,3 @@ from collections import OrderedDict
 tudui_method1 = torch.load("../Models/Tudui/tudui_method1.pth")
 print(tudui_method1)
 
-

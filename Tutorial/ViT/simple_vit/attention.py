@@ -2,12 +2,6 @@ import torch
 from torch import nn
 from einops import rearrange
 
-# 这是一个继承自 torch.nn.Module 的 PyTorch 模块类。
-# 实现一个简单的多头自注意力机制。
-# dim：输入特征的维度。
-# heads：注意力头的数量（默认是8）。
-# dim_head：每个注意力头的维度（默认是64）。
-# 注意力机制的核心思想是通过计算查询（query）、键（key）和值（value）之间的关系来捕捉输入序列中不同位置之间的依赖关系。
 class Attention(nn.Module):
     def __init__(self, dim, heads = 8, dim_head = 64):
         super().__init__()
@@ -30,20 +24,3 @@ class Attention(nn.Module):
         return self.to_out(out)
 
 
-# 这是一个继承自 torch.nn.Module 的 PyTorch 模块类。
-# 实现一个简单的前馈神经网络，包含两个线性层和一个 GELU 激活函数。
-# dim：输入和输出的特征维度，通常对应于 token 的嵌入维度（embedding dim）。
-# hidden_dim：隐藏层的维度。
-class FeedForward(nn.Module):
-    # 搭建前馈神经网络的结构
-    def __init__(self, dim, hidden_dim):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, dim)
-        )
-    # 前向传播
-    def forward(self, x):
-        return self.net(x)

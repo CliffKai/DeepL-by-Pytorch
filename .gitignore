@@ -4,3 +4,8 @@
 /datasets
 /model
 /tensorboard
+/data
+/dataset
+/logs
+/Models
+/.DS_Store

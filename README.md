@@ -13,6 +13,10 @@
 - ViT
 - Transformer
 - MAE
+- CLIP
+- ViLT
+- MoCo
+- MML串讲
 
 # 说明    
 

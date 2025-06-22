@@ -42,6 +42,18 @@ ALBEF 主要由四个模块组成：
 - 图文匹配（ITM）
 - 掩码语言建模（MLM）
 
+主要贡献：
+1. 先对齐，再融合（Align Before Fuse）：使用 ITC 将图像和文本的特征先对齐（Align）再融合（Fuse）；
+2.  动量蒸馏（Momentum Distillation）：使用 momentum model 来生成 pseudo target以此来克服 noisy data从而做到自训练。
+
+**ALBEF中的ITM任务**：一般的ITM判断负样本很简单，与训练的时候很快就学不到有用的信息了，此时常见的做法是在选择负样本的时候给一些constraint，ALBEF这篇论文中采取了最常见的一个方法，选择那个最难的负样本（hard negative samples，最接近于正样本的负样本）让模型去预测。此时ITM还依赖于之前的ITC，把这张图片和同一个batch里的所有文本做一个 cos simolarity，选择一个除了自己之外相似度最高的文本去做 hard negative，此时这个 negative 已经和图像很接近了，几乎都可以看作是正样本了，这个时候 ITM Loss 就变得非常 challenging 了，一次让模型能够更好的去学习图像文本对之间的关系。
+
+**两次前向**：在计算 ITC 和 ITM 的 loss 时输入的 i 和 t 都是原始的不变的，但是在计算 MLM Loss 的时候输入的是院士的 i 和 Masked 的 t，也就是说整个模型是做两次前向过程。
+
+**Momentum Distillation**：
+
+前向过程：
+
 1. 视觉编码器（Vision Encoder）
 
     - 使用的是 ViT（Vision Transformer），如 ViT-B/16；

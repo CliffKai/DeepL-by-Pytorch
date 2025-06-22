@@ -95,13 +95,7 @@ ALBEF 主要由四个模块组成：
     - - 提高稳定性，缓解 early collapse；
     - - 允许使用未配对图文数据进行训练（semi-supervised setting）。
 
-ALBEF 的训练目标（Loss）：
-
-|训练任务|	模块依赖	|描述|
-| -------------- | --------------- | --------------- |
-ITC (Image-Text Contrastive Loss)	|ViT + BERT + 投影头 + 蒸馏|	用于训练视觉和语言编码器之间的对齐（先对齐）
-ITM (Image-Text Matching)|	Cross-modal Encoder	|输入对齐后的图文，判断它们是否匹配（fine-grained 匹配）
-MLM (Masked Language Modeling)|	Cross-modal Encoder	|在图像辅助下恢复被掩盖的文本 token
+## 1.3 VLMo
 
 
 

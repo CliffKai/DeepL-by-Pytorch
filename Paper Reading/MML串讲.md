@@ -6,7 +6,7 @@
 
 # 第一部分：只用 Transformer Encoder 的一些方法
 
-![Figure1](../images/MML论文串讲_Figure1.png)
+![Figure1](../images/MML论文串讲_Figure_1.png)
 
 # 1.1 CLIP、ViLT 回顾
 
@@ -29,7 +29,7 @@ CLIP 做图文匹配效果很好，但是其他VQA、VR、VE等任务就不太�
 
 ## 1.2 ALBEF
 
-![Figure2](../images/MML论文串讲_Figure2.png)   
+![Figure2](../images/MML论文串讲_Figure_2.png)   
 
 ALBEF 主要由四个模块组成：
 1.	视觉编码器（Vision Encoder）
@@ -97,7 +97,7 @@ ALBEF 主要由四个模块组成：
 
 ## 1.3 VLMo
 
-
+![Figure2](../images/MML论文串讲_Figure_3.png)   
 
 # 第二部分：Transformer Encoder 和 Decoder 一起用的一些方法
 

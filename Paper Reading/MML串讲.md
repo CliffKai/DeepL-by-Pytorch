@@ -99,6 +99,43 @@ ALBEF 主要由四个模块组成：
 
 ![Figure2](../images/MML论文串讲_Figure_3.png)   
 
+通过引入MoME的Transformer架构，统一VL预训练模型的设计
+
+**架构**
+
+* **视觉专家（V-FFN）**：用于处理图像数据。
+* **语言专家（L-FFN）**：用于处理文本数据。
+* **视觉-语言专家（VL-FFN）**：用于处理图像-文本对的数据。
+
+这里FFN层并没有share weights，但是FFN前面的层都是share weights的。
+
+自注意力层权重共享
+
+**预训练策略：分阶段训练**
+
+1. **图像预训练**：使用 BEiT 提出的掩码图像建模方法，MIM。
+2. **文本预训练**：使用BERT的掩码语言建模方法，MLM。
+3. **视觉-语言预训练**：在图像-文本对数据上进行联合预训练，ITC loss 和 ITM loss。
+
+**主要贡献**
+
+* **统一架构**：提出了一个既能作为双编码器用于检索任务，又能作为融合编码器用于分类任务的统一模型。
+* **MoME Transformer**：引入了 MoME 架构，提升了多模态数据处理的效率和灵活性。
+* **分阶段预训练**：通过在图像、文本和图像-文本对数据上的分阶段预训练，增强了模型的泛化能力。
+
 # 第二部分：Transformer Encoder 和 Decoder 一起用的一些方法
 
+## 2.1 CoCa
 
+![CoCa_Figure_1](../images/CoCa_Figure_1.png)
+
+
+
+## 2.2 BLIP
+
+![BLIP_Figure_1](../images/BLIP_Figure_1.png)
+
+
+## 2.3 BEIT-3
+
+![BEIT-3_Figure_1](../images/BEIT-3_Figure_1.png)

@@ -16,7 +16,7 @@
 
 **为什么值得做？**
 
-* 你熟悉的 Transformer/BERT/ViT 技术栈无缝复用。
+* 与 Transformer/BERT/ViT 技术栈无缝复用。
 * 把 Action 离散化后，可直接采用语言式 prompt-engineering、in-context learning。
 * Open-ended 任务（长尾物体、新场景）靠大模型的“常识”填补。
 

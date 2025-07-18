@@ -4,7 +4,7 @@
 
 # 模型
 
-![Transformer_Figure_1](../images/Transformer_Figure_1.png)
+![Transformer_Figure_1](../../images/Transformer_Figure_1.png)
 
 Transformer 由两个主要部分组成：
 - Encoder 编码器（图左侧，重复 N 次）
@@ -25,7 +25,7 @@ Transformer 由两个主要部分组成：
 - 原始论文使用 固定的正余弦函数，定义如下：
 
 $$
-\text{PE}{(pos, 2i)} = \sin\left(\frac{pos}{10000^{2i/d{model}}}\right), \quad \text{PE}{(pos, 2i+1)} = \cos\left(\frac{pos}{10000^{2i/d{model}}}\right)
+\text{PE}{(pos, 2i)} = \sin\left(\frac{pos}{10000^{2i/d{model}}}\right), \quad \text{PE}{(pos, 2i+1)} = \cos\left(\frac{pos}{10000^P{2i/d{model}}}\right)
 $$
 
 - 最终：

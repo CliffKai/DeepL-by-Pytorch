@@ -6,4 +6,6 @@
     - simple-vit
     - vit
 
-- Transformer[未完结]
+- Transformer from scratch[未完结]
+
+- Build the GPT Tokenizer[未完结]

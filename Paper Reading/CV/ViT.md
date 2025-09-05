@@ -173,7 +173,7 @@ Transformer在NLP领域已经成为了标准（比如BERT、GPT都用Transformer
 
 ## 3.1 VISION TRANSFORMER (VIT)    
 
-![ViT_Figure_1](../images/ViT_Figure_1.png)    
+![ViT_Figure_1](../../images/ViT_Figure_1.png)    
 
 Figure 1 是 ViT 的结构总览图，下面来详细了解一下 ViT 在使用 transformer 处理图像之前如何对图像进行预处理。
 
@@ -474,7 +474,7 @@ Few-shot 的方法是：
 2. 预训练使用 JFT-300M 的 ViT 性能最强，但即使是 ImageNet-21k（公开数据）预训练的 ViT-L/16 也非常强（成本更低）。
 3. ViT 比 ResNet、EfficientNet 更节省计算资源，训练效率更高。
 
-![ViT_Figure_2](../images/ViT_Figure_2.png)      
+![ViT_Figure_2](../../images/ViT_Figure_2.png)      
 
 Figure 2展示了 VTAB（Visual Task Adaptation Benchmark） 中不同模型在三类任务上的性能表现对比。作者借此强调 ViT 在泛化能力方面的优势，特别是在多样化下游任务上。
 
@@ -486,7 +486,7 @@ Figure 2展示了 VTAB（Visual Task Adaptation Benchmark） 中不同模型在�
 
 ## 4.3 PRE-TRAINING DATA REQUIREMENTS
 
-![ViT_Figure_3](../images/ViT_Figure_3.png)  
+![ViT_Figure_3](../../images/ViT_Figure_3.png)  
 
 > 最重要的一张图    
 
@@ -505,7 +505,7 @@ Figure 2展示了 VTAB（Visual Task Adaptation Benchmark） 中不同模型在�
 
 结论：ViT 在大数据上训练时性能显著提升，尤其适合高资源场景。
 
-![ViT_Figure_4](../images/ViT_Figure_4.png)  
+![ViT_Figure_4](../../images/ViT_Figure_4.png)  
 
 Figure 4：Few-shot 表征能力 vs 预训练样本数
 - 横轴是预训练样本数量（从10M到300M）
@@ -538,7 +538,7 @@ Figure 4：Few-shot 表征能力 vs 预训练样本数
   - 5 个 Hybrid 模型：如 R50+ViT-L/16（使用 ResNet 提特征，ViT 编码），训练 7 或 14 个 epoch。
 - Hybrid 名称后缀（如 B/16）代表的是 ResNet 特征图的降采样比例，不是 patch size。
 
-![ViT_Figure_5](../images/ViT_Figure_5.png)       
+![ViT_Figure_5](../../images/ViT_Figure_5.png)       
 
  Figure 5：准确率 vs 训练计算量（exaFLOPs）
 
@@ -563,7 +563,7 @@ Figure 4：Few-shot 表征能力 vs 预训练样本数
 
 ## 4.5 INSPECTING VISION TRANSFORMER
 
-![ViT_Figure_6](../images/ViT_Figure_6.png)    
+![ViT_Figure_6](../../images/ViT_Figure_6.png)    
 
 Figure 6 ：注意力图示例
 - 展示了不同图像中，ViT 最后输出 token（[CLS]）关注的区域：
@@ -572,7 +572,7 @@ Figure 6 ：注意力图示例
 
 结论：ViT 自动学会关注图像中对分类最有用的部分，效果接近甚至优于 CAM 等经典方法。
 
-![ViT_Figure_7](../images/ViT_Figure_7.png)    
+![ViT_Figure_7](../../images/ViT_Figure_7.png)    
 
 Figure 7 展现了 Vision Transformer 在表征学习中的三个关键机制：
 1. 左图：线性投影权重的主成分可视化

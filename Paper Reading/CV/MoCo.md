@@ -93,7 +93,7 @@ MoCo 在 ImageNet 分类任务中的常见线性评估协议下变现很好，�
 
 因为一个更大的字典可以更好地对底层连续的高维视觉空间进行采样。同时，字典中的 key 应由相同或相似的编码器生成，以确保它们与 query 的比较是一致。然而，目前已有的对比损失的方法通常在这两个方面中至少存在一个缺陷（后文会详细讨论）。
 
-![Figure_1](../images/MoCo_Figure_1.png)
+![Figure_1](../../images/MoCo_Figure_1.png)
 
 **Figure 1**: MoCo（Momentum Contrast）方法的核心结构图和说明。它直观展示了 MoCo 的训练流程和两个关键机制：“动量编码器（momentum encoder）”和“队列字典（queue dictionary）”。                   
 **左边：Query 分支**
@@ -142,7 +142,7 @@ MoCo（Momentum Contrast） 是一种用于无监督学习的机制，通过对�
 
 # 2 Related Work
 
-![Figure_2](../images/MoCo_Figure_2.png)
+![Figure_2](../../images/MoCo_Figure_2.png)
 
 我们依次来讲解。
 

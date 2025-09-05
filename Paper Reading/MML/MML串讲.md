@@ -6,7 +6,7 @@
 
 # 第一部分：只用 Transformer Encoder 的一些方法
 
-![Figure1](../images/MML论文串讲_Figure_1.png)
+![Figure1](../../images/MML论文串讲_Figure_1.png)
 
 # 1.1 CLIP、ViLT 回顾
 
@@ -29,7 +29,7 @@ CLIP 做图文匹配效果很好，但是其他VQA、VR、VE等任务就不太�
 
 ## 1.2 ALBEF
 
-![Figure2](../images/MML论文串讲_Figure_2.png)   
+![Figure2](../../images/MML论文串讲_Figure_2.png)   
 
 ALBEF 主要由四个模块组成：
 1.	视觉编码器（Vision Encoder）
@@ -97,7 +97,7 @@ ALBEF 主要由四个模块组成：
 
 ## 1.3 VLMo
 
-![Figure2](../images/MML论文串讲_Figure_3.png)   
+![Figure2](../../images/MML论文串讲_Figure_3.png)   
 
 通过引入MoME的Transformer架构，统一VL预训练模型的设计
 
@@ -127,15 +127,15 @@ ALBEF 主要由四个模块组成：
 
 ## 2.1 CoCa
 
-![CoCa_Figure_1](../images/CoCa_Figure_1.png)
+![CoCa_Figure_1](../../images/CoCa_Figure_1.png)
 
 
 
 ## 2.2 BLIP
 
-![BLIP_Figure_1](../images/BLIP_Figure_1.png)
+![BLIP_Figure_1](../../images/BLIP_Figure_1.png)
 
 
 ## 2.3 BEIT-3
 
-![BEIT-3_Figure_1](../images/BEIT-3_Figure_1.png)
+![BEIT-3_Figure_1](../../images/BEIT-3_Figure_1.png)

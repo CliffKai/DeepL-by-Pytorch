@@ -7,3 +7,4 @@ Architectural innovations:
 2. handle sequences of arbitrarily interleaved visual and textual data;
 3. seamlessly ingest images or videos as inputs.
 
+# 1 Introduction

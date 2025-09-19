@@ -40,4 +40,20 @@ Architectural innovations:
 
 # 2 Approach
 
+![](../../images/Flamingo_Figure_3.png)
+
+
+1. **Perceiver Resampler（视觉侧 → 固定长度 token）**
+
+   * **位置**：在 Vision Encoder（NFNet-F6）之后。
+   * **作用**：把不同分辨率、不同帧数的视觉特征（可变长）压缩成 **固定数量（64 个）视觉 token**，保证跨注意力的计算规模不依赖输入分辨率。
+   * **创新点**：相比直接用 Transformer/MLP，更高效且泛化性更好（后面消融实验部分会讲到）。
+
+2. **GATED XATTN-DENSE（语言侧桥接层）**
+
+   * **位置**：插入在若干个 **冻结的 LM Block 之间**，而不是“每一层 LM Block 前”。
+
+     * 论文中测试了不同插入频率：每层插入最好，但代价太大；最终 Flamingo-9B 每 4 层插一次，Flamingo-80B 每 7 层插一次。
+   * **作用**：通过门控跨注意力把视觉 token 注入语言流，同时保证初始化时输出与原 LM 一致，避免破坏预训练知识。
+
 

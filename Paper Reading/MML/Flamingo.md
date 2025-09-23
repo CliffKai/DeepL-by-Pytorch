@@ -185,3 +185,81 @@ Flamingo **如何在输入包含多张图像或多段视频时进行跨注意力
 * **推理时**：可以无缝扩展到 **32 张/段**（即 32-shot few-shot setting），并且性能还能继续提升。
 * **对比实验**：这种“单图 cross-attn 掩码”方案，比“允许文本 attend 所有历史图像”的方法更有效。
 
+## 2.4 Training on a mixture of vision and language datasets
+
+Flamingo 的**训练数据来源和训练策略**。可以分成三块：
+
+1. 数据来源：三类多模态大规模语料（全部来自 web，非人工标注）
+
+* **M3W (MultiModal MassiveWeb)**
+
+  * 来自约 4300 万网页的 HTML，直接解析 **图像和文本在 DOM 中的相对位置**。
+  * 构造方式：在文本中插入 `<image>` 标签表示图片位置，在前后加 `<EOC>`（end of chunk）标记。
+  * 从每个文档中采样最多 256 个 token，取前 **≤5 张图像**（更多的丢弃以节省计算）。
+  * 用来训练模型对“交错图文输入”的适应性，这正是 Flamingo few-shot 能力的关键。
+
+* **Image–Text Pairs**
+
+  * 基于 **ALIGN**（18 亿图像–alt-text 对）。
+  * 自建 **LTIP (Long Text & Image Pairs)** 数据集（3.12 亿对），特点是文本更长、更高质量。
+
+* **Video–Text Pairs (VTP)**
+
+  * 2700 万个短视频（平均 22 秒），配套句子描述。
+  * 用法与图文对保持一致，在 caption 前后分别加 `<image>` 和 `<EOC>` 标记。
+
+2. 数据统一化处理
+
+* 为了让不同来源的数据能统一输入模型：
+
+  * 图像对/视频对也被转成和 M3W 相同的语法格式：`<image> caption <EOC>`。
+  * 这样所有数据都可以被看作 **“交错的图像+文本”** 序列。
+
+3. 训练目标与优化策略
+
+* **目标函数**：
+
+  * 对所有数据集 $D_m$，最小化加权的文本负对数似然：
+
+    $$
+    \sum_{m=1}^{M} \lambda_m \; \mathbb{E}_{(x,y)\sim D_m} \left[-\sum_{\ell=1}^L \log p(y_\ell \mid y_{<\ell}, x_{\le \ell})\right]
+    $$
+  * 其中 $\lambda_m$ 是每个数据集的权重。
+  * 本质上就是：**条件在视觉输入上，做自回归语言建模**。
+
+* **训练策略**：
+
+  * 不同数据集的梯度 **累积混合**（而不是 round-robin 轮流采样），效果更好。
+  * 数据集权重 $\lambda_m$ 的调优对性能至关重要。
+
+## 2.5 Task adaptation with few-shot in-context learning
+
+Flamingo 在 **任务适应 (task adaptation)** 阶段是如何用的：
+
+1. 使用方式：in-context learning
+
+* **训练完 Flamingo 之后**，它不会像传统方法那样再做任务特定的微调（fine-tuning）。
+* 而是模仿 GPT-3 的做法，用 **few-shot in-context learning**：
+
+  * 给模型一个 **多模态交错的 prompt**，里面包含几个 **支持示例 (support examples)**，形式是 `(image, text)` 或 `(video, text)`。
+  * 然后再加上一个 **query visual input**（待测试的图像或视频）。
+  * 模型基于这些上下文信息直接生成答案。
+
+2. 评估方法
+
+* **开放式任务 (open-ended)**：
+
+  * 用 **beam search** 生成文本输出。
+  * 典型任务：captioning、visual dialogue。
+
+* **封闭式任务 (close-ended)**：
+
+  * 不直接生成，而是用模型的 **log-likelihood** 对每个候选答案打分，选取概率最大的。
+  * 典型任务：多项选择式的 VQA（Visual Question Answering）。
+
+3. Zero-shot 设置
+
+* 作者还测试了 **zero-shot 泛化**：
+
+  * 给模型的 prompt 里只放 **两个文本示例**（没有配图），看它能不能在没有图像示例的情况下解决任务。
+

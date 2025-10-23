@@ -5,7 +5,7 @@ from jaxtyping import Float
 
 def softmax(x: Tensor, dim: int) -> Tensor:
     shifted = x - x.max(dim=dim, keepdim=True).values
-    exps = torch.exps(shifted)
+    exps = torch.exp(shifted)
     return exps / exps.sum(dim=dim, keepdim=True)
 
 def silu(x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:

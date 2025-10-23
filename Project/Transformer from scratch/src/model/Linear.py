@@ -29,7 +29,8 @@ class Linear(nn.Module):
         nn.init.trunc_normal_(self.weight, mean=0.0, std=std, a=-3*std, b=3*std)
 
     def forward(self, x: Float[Tensor, "... d_in"]) -> Float[Tensor, "... d_out"]:
-        return einsum(x, self.weight, "... d_in, d_out d_in -> ... d_out")
+        w = self.weight.to(x.dtype)
+        return einsum(x, w, "... d_in, d_out d_in -> ... d_out")
     
     def extra_repr(self) -> str:
         return f"in_features={self.in_features}, out_features={self.out_features}, bias=False"

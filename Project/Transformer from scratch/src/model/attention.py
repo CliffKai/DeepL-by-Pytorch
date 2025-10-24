@@ -41,7 +41,7 @@ import torch
 from torch import Tensor
 from einops import einsum
 
-from src.model.attention import attention  # 假设你的文件路径为 model/attention.py
+from src.model.attention import attention
 
 # 1️⃣ 固定随机种子
 torch.manual_seed(0)

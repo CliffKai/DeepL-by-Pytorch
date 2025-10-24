@@ -1,8 +1,33 @@
+import math
 import torch
+import torch.nn as nn
+
 from torch import Tensor
 from einops import einsum
+from jaxtyping import Float, Bool
 
-from src.model.attention import attention  # 假设你的文件路径为 model/attention.py
+def softmax(
+    x: Tensor,
+    dim: int,
+):
+    shifted = x - x.max(dim=dim, keepdim=True).values
+    exps = torch.exp(shifted)
+    return exps / exps.sum(dim=dim, keepdim=True)
+
+def attention(
+    q: Float[Tensor, "... q d_k"],
+    k: Float[Tensor, "... k d_k"],
+    v: Float[Tensor, "... v d_k"],
+    mask: Bool[Tensor, "... q k"] | None=None,
+):
+    d_k = q.size(-1)
+    scores = einsum(q, k, "... q d_k, ... k d_k -> ... q k") / math.sqrt(d_k)
+    if mask is not None:
+        scores = scores.masked_fill(mask==False, float("-inf"))
+    attn = softmax(scores, dim=-1)
+    return einsum(attn, v, "... q k, ... k d_k -> ... q d_k")
+
+
 
 # 1️⃣ 固定随机种子
 torch.manual_seed(0)

@@ -29,7 +29,7 @@ class RMSNorm(nn.Module):
 # test code
 '''
 import torch
-from model.RMSNorm import RMSNorm  # 假设你的文件路径为 model/RMSNorm.py
+from src.model.RMSNorm import RMSNorm  # 假设你的文件路径为 model/RMSNorm.py
 
 # 1️⃣ 固定随机种子，便于复现
 torch.manual_seed(0)

@@ -24,17 +24,6 @@ def attention(
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 # attention test code
 '''
 import torch

@@ -40,7 +40,7 @@ class Linear(nn.Module):
 import torch
 from einops import einsum
 
-from model.Linear import Linear 
+from src.model.Linear import Linear 
 
 # 1️⃣ 创建一个简单的线性层实例
 in_features = 4

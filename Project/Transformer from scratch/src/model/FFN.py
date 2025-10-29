@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 
 from torch import Tensor
-from .Linear import Linear
 from jaxtyping import Float
+
+from .Linear import Linear
 from ..nn_utils import silu
 
 class SwiGLU(nn.Module):

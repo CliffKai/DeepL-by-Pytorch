@@ -24,7 +24,7 @@ Pre-Norm 的核心优势：保持 residual path 的数值稳定性，让梯度�
 
 ![LayerNorm vs RMSNorm](../images/CS336/CS336_Lecture_3_Figure_7.png)
 
-1. **计算更少**：LN 需要计算均值和方差，RMSNorm 只要**平方和一次归约**即可；同时相比于 LN,RMSNorm 还少加了一个偏置项，虽然加法等在计算中占比很少，但是其内存调转引起的时延占比非常非常高（见上图图7）；
+1. **计算更少**：LN 需要计算均值和方差，RMSNorm 只要平方和一次归约即可，虽然归一化只占总体计算的0.17%，但由于其频繁地访问大规模张量数据、内存读写远多于计算，在实际运行时间中却能占到约25%。因此，减少归一化中的数据移动（如用RMSNorm替代LayerNorm，去掉对均值的读取和额外减法操作）能显著降低内存带宽压力，提升整体推理速度。（见上图图7）；
 2. **反向传播简单**：没有取均值与方差项，梯度表达式更简单，数值更稳定（尤其混合精度、低比特场景）。
 3. **能够保留均值（偏移）信息**：LN 强制零均值，RMSNorm 不会抹去均值方向上的信息；实践上，在**预归一化（Pre-Norm）Transformer**的残差通路里，这常常配合得很好（许多现代解码式 LLM——如 LLaMA 系列、Mistral 等——采用 RMSNorm）。
 详细讲解可看[assignment1各模块实现讲解](https://github.com/CliffKai/assignment1-basics/blob/main/Note/assignment1%E5%90%84%E6%A8%A1%E5%9D%97%E5%AE%9E%E7%8E%B0%E8%AE%B2%E8%A7%A3.ipynb) 9.4部分。

@@ -308,7 +308,7 @@ $$
 ### 3.混合输出阶段（Weighted Combination）
 
 $$
-h_t^l = \sum_{i=1}^N ( g_{i,t} \times \text{FFN}_i(u_t^l) ) + u_t^l
+h_t^l = \sum_{i=1}^N ( g_{i,t} \cdot \text{FFN}_i(u_t^l) ) + u_t^l
 $$
 
 解释：
@@ -355,3 +355,261 @@ $$
 * **负载不均衡**：有些专家被选太多，有些几乎不被用；
 * **稳定性问题**：如果 gating 学不好，训练可能发散。
   （因此常加负载均衡损失或噪声路由，如 noisy top-k）
+
+# How to training MoE
+
+## 1.Stochastic Routing
+
+$$
+G(x) = \text{Softmax}(\text{KeepTopK}(H(x), k))
+$$
+
+* 对输入 token 的表示 ( x )，路由器输出打分 ( H(x) )；
+* 只保留 top-k 个分数（其余设为 −∞）；
+* 对这 top-k 个分数做 softmax，得到**专家选择概率分布**。
+
+
+$$
+H(x)_i = (x \cdot W_g)*i + \text{StandardNormal()} \cdot \text{Softplus}((x \cdot W*{noise})_i)
+$$
+
+* $ (x \cdot W_g)_i $：专家 i 的原始打分（门控分数）；
+* $ \text{StandardNormal()} $：从标准高斯分布采样的随机噪声；
+* $ \text{Softplus}((x \cdot W_{noise})_i) $：噪声幅度（动态决定每个 token 的扰动强度）；
+* 整个项相当于：在每个 token → expert 打分上**加入高斯噪声**。
+
+
+$$
+\text{KeepTopK}(v, k)_i =
+\begin{cases}
+v_i, & \text{if } v_i \text{ in top } k\\
+-\infty, & \text{otherwise}
+\end{cases}
+$$
+
+表示只保留 top-k 的打分，其他置为负无穷（softmax 后概率≈0）。
+
+**核心思想**:
+
+> 路由决策是带高斯噪声的随机决策（stochastic routing with gaussian perturbations）。
+
+* 在训练中引入噪声，让不同专家都有机会被选中；
+* 这能**缓解专家塌陷（collapse）**——即所有 token 被送到少数几个专家；
+* 同时 softmax 使模型能学习如何“排序”专家；
+* 这种随机性让专家更**鲁棒（robust）**、**多样化（diverse）**。
+
+## 2.Stochastic Jitter
+
+```python
+if is_training:
+    # Add noise for exploration across experts.
+    router_logits += mtf.random_uniform(
+        shape=router_logits.shape,
+        minval=1-eps,
+        maxval=1+eps
+    )
+
+router_logits = mtf.to_float32(router_logits)
+router_probs = mtf.softmax(router_logits, axis=-1)
+```
+
+* 在训练阶段，给路由 logits（即 token→expert 的打分）**乘以一个随机扰动因子$1±ε$**；
+* 相当于在每次训练中对专家打分**施加轻微随机乘法抖动（multiplicative perturbation）**；
+* 目的：**让专家更有探索性（exploration）**，防止被固定选择、提升模型鲁棒性；
+* 最后仍通过 softmax 归一化成概率分布。
+
+
+| Method               | Fraction Stable | Quality (↑)       |
+| -------------------- | --------------- | ----------------- |
+| Baseline             | 4/6             | **-1.755 ± 0.02** |
+| Input jitter (10^-2) | 3/3             | -1.777 ± 0.03     |
+| Dropout (0.1)        | 3/3             | -1.822 ± 0.11     |
+
+解释：
+
+* **Fraction Stable** 表示模型在多次实验中是否收敛稳定；
+* **Quality** 表示模型性能指标（越高越好）；
+* baseline 最好，但略微不稳定；
+* jitter 与 dropout 让模型更稳定（更不容易塌陷），但质量略降；
+* 所以：**随机扰动确实增强了稳定性（robustness），但略损性能。**
+
+## 3.Switch Transformer
+
+![1](../images/CS336/CS336_Lecture_4_Figure_9.png)
+
+### 3.1 问题背景
+
+MoE/ Switch 层中，路由器会把每个 token 分配给某个专家（通常 top-1，Switch）。如果部分专家被过度使用、另一些很少被用到，就会：
+
+* 造成系统**吞吐与显存利用率低**（热门专家拥塞，冷门专家闲置），
+* 甚至训练不稳（梯度/负载不均）。
+
+因此需要一个**辅助损失**去鼓励“平均使用专家”。
+
+### 3.2 符号与定义
+
+* 一层有 **N** 个专家，一批有 **T** 个 token（批 B）。
+* 路由器对 token $x$ 输出对每个专家的概率 $p_i(x)$。
+* **实际使用占比** $f_i$：这批里被**真正派给**专家 i 的 token 比例（用硬决策 $\arg\max p(x)$ 统计）
+  $$
+  f_i=\frac{1}{T}\sum_{x\in B}\mathbf{1}{\arg\max p(x)=i}
+  $$
+* **概率分配占比** $P_i$：这批里路由器对专家 i 的**平均概率质量(probability mass)**
+  $$
+  P_i=\frac{1}{T}\sum_{x\in B}p_i(x)
+  $$
+
+### 3.3 辅助损失（图中式(4)）
+
+$$
+\text{loss}=\alpha \cdot N \cdot \sum_{i=1}^{N} (f_i \cdot P_i)
+$$
+
+* $\alpha$ 是权重（小常数，训练时与主损失相加）。
+* 这个式子惩罚 **“高使用 + 高分配概率” 在同一专家上同时出现**。
+  直觉：如果某个专家既被选得多（$f_i$ 大），又被分到很多概率质量（$P_i$ 大），那么 $f_iP_i$ 就大，惩罚大 → 促使路由把概率往别的专家挪，**拉平使用率**。
+
+> 由于 $\sum_i f_i=1, \sum_i P_i=1$，在这些和固定的前提下，$\sum_i f_iP_i$ 在**分布越均匀**、或者两者越“错开”时越小；当“热门对热门”强对齐时最大。因此最小化该项会鼓励**均匀使用专家**。
+
+### 3.4 梯度含义
+
+对单个 token 的概率 $p_i(x)$ 求导，可得到（省略常数与换元）：
+$$
+\frac{\partial \text{loss}}{\partial p_i(x)}
+=\frac{\alpha N}{T^2}\sum_{x'\in B}\mathbf{1}{\arg\max p(x')=i}
+=\frac{\alpha N}{T} \cdot f_i
+$$
+这说明：
+
+* **某专家被用得越频繁（$f_i$ 大）**，它对应的概率 $p_i(x)$ 就受到**更强的下压梯度**（“more frequent use = stronger downweighting”）。
+* 训练中这会把过热专家的路由概率压低，把冷门专家拉高，实现**负载均衡**。
+
+### 3.5 DeepSeek v1-v2 的例子
+
+![1](../images/CS336/CS336_Lecture_4_Figure_10.png)
+
+**DeepSeek(v1–2) 的“负载均衡损失”两种层级：按专家（per-expert）和按设备（per-device）**。它把 Switch Transformer 的均衡思路（$ \sum f_i P_i $）先用在每个专家上，又**聚合到机器/设备维度**，以同时解决“专家不均衡”和“设备不均衡”的系统瓶颈。
+
+#### 1) Per-expert balancing（与 Switch 相同）
+
+上半框等式 (12)–(14)：
+
+$$
+\mathcal{L}_{\text{ExpBal}} = \alpha_1 \sum_{i=1}^{N'} f_i P_i
+$$
+
+* $N'$：这一层里参与路由的**专家数**（或每组/每设备的专家数，视实现而定）。
+* $T$：本批 token 数。
+* $K'$：每个 token 选的专家个数（top-(K')）——在 Switch 通常 (K'=1)。
+* $f_i$：**实际使用比例**（硬路由后，去到专家 (i) 的 token 占比），这里写成
+  $$
+  f_i=\frac{N'}{K'T}\sum_{t=1}^{T}\mathbf{1}({\text{Token }t\text{ Select Expert }i})
+  $$
+
+  > 多了 $\frac{N'}{K'T}$ 的缩放，使量级更稳定/可比（不同 $N',K'$ 时不会飘）。
+* $P_i$：**平均概率质量**（路由 softmax 对专家 $i$ 的平均概率）
+  $$
+  P_i=\frac{1}{T}\sum_{t=1}^{T} s_{i,t}
+  $$
+  这里的 $s_{i,t}$ 就是第 $t$ 个 token 对专家 $i$ 的 softmax 概率 $p_i(x_t)$。
+
+直觉：如果某个专家既**被频繁选中**（$f_i$ 大），又**被分配了很多概率**（$P_i$ 大），则 $f_iP_i$ 大，损失会**惩罚它**，把概率往其他专家挪——实现**专家层面的均衡**。
+
+#### 2) Per-device balancing（设备聚合层）
+
+下半框等式 (15)–(17)：
+
+$$
+\mathcal{L}_{\text{DevBal}}=\alpha_2 \sum_{i=1}^{D} f'_i P'_i
+$$
+
+* $D$：设备/主机数（GPU/TPU 卡的个数）。
+* 令 $\varepsilon_i$ 是**设备 (i)** 上承载的专家集合（该卡负责的 experts）。
+* 把专家层的统计**按设备聚合**：
+  $$
+  f'_i=\frac{1}{|\varepsilon_i|}\sum_{j\in \varepsilon_i} f_j ,\qquad
+  P'_i=\sum_{j\in \varepsilon_i} P_j \tag{16–17}
+  $$
+
+  * $f'_i$：设备 $i$ 上**平均实际使用比例**（把该设备上的所有专家的 $f_j$ 取平均）。
+  * $P'_i$：设备 $i$ 上**总概率质量**（把该设备上所有专家的 $P_j$ 相加）。
+
+直觉：哪台设备上的专家**又热又被高概率偏好**，($f'_iP'_i$) 就大，会被**下调**；冷设备则被**上调**。这样就不仅让“专家之间”均衡，也让“**设备之间**”负载均衡，避免某几张卡拥塞、其他卡闲置——**提升整体吞吐与稳定性**。
+
+#### 为什么要加“按设备”的一层？
+
+在大规模 MoE 中，专家是分布在不同设备上的（expert parallel）。仅做 per-expert 均衡不一定等价于设备均衡：
+
+* 即使专家层看着均匀，如果多数活跃专家**恰好集中在同几张卡**，这些卡会溢出，成为**系统瓶颈**。
+* 加上 $\mathcal{L}_{\text{DevBal}}$ 后，训练会把路由概率**跨设备拉平**，提升利用率与并行效率。
+
+## 4.DeepSeek-v3 
+
+![1](../images/CS336/CS336_Lecture_4_Figure_11.png)
+
+**DeepSeek-v3 的一种“按专家加偏置”的路由均衡做法**，以及他们仍然保留的一个**序列级（sequence-wise）补充均衡损失**。核心思想：**不再主要靠辅助损失去拉平专家负载，而是给每个专家加一个可学习/在线更新的偏置 $b_i$**，直接影响被选为 Top-K 的机会，从而“自平衡”。
+
+### 4.1 按专家加偏置（per-expert biases）
+
+$$
+g'*{i,t}=
+\begin{cases}
+s*{i,t}, & \text{若 } s_{i,t}+b_i \in \text{TopK}\big({s_{j,t}+b_j \mid 1\le j\le N_r},,K_r\big)\
+0, & \text{否则}
+\end{cases}
+$$
+
+含义逐条看：
+
+* $s_{i,t}$：路由器对第 $t$ 个 token 送到专家 $i$ 的**原始得分/概率**（softmax 前或后得分，取决于实现）。
+* $b_i$：**每个专家自己的偏置**。
+
+  * **冷门专家**（最近被用得少）→ $b_i$ 被**增大**，提高被选中概率；
+  * **热门专家** → $b_i$ 被**减小**，降低被选中概率。
+  * 这个 $b_i$ 通过在线/运行中统计的负载来更新（论文称为 online learning / bandit-style 更新；直觉就是“少用多补、常用少给”）。
+* **决策机制**：是否进入 Top-K 的**排序**用的是 $s_{i,t}+b_i$（带偏置的分数）；
+  但**真正送入专家的权重/门值**仍用 **原始** $s_{i,t}$（被选中则 $g'_{i,t}=s_{i,t}$，否则 0）。
+  这样偏置只改变“谁被选中”，不直接放大某个专家的前向权重。
+
+> 这套做法被他们称为 **auxiliary-loss-free balancing**：主要靠 $b_i$ 的在线调整来均衡，不必像 Switch 那样强依赖 $\sum f_i P_i$ 这类辅助损失去推平。
+
+### 4.2 仍保留一个**序列级**补充均衡损失
+
+图中下半部分：尽管 v3 主要靠“无辅助损失”的偏置策略，他们**仍然加了一个补充的 sequence-wise balancing loss**，防止**单条序列**内部出现极端不均衡。
+
+写法与 Switch 思路类似（但按序列统计）：
+$$
+\mathcal{L}_{\text{Bal}}=\alpha \sum_{i=1}^{N_r} f_i,P_i 
+$$
+其中
+$$
+f_i = \frac{N_r}{K_r T} \sum_{t=1}^{T} 
+\mathbf{1}\!\left(s_{i,t} \in \text{Top}k(\{s_{j,t} \mid 1 \le j \le N_r\}, K_r)\right),
+$$
+$$
+s'_{i,t}=\frac{s_{i,t}}{\sum_{j=1}^{N_r}s_{j,t}},
+$$
+$$
+P_i=\frac{1}{T}\sum_{t=1}^{T}s'_{i,t}
+$$
+
+要点：
+
+* (f_i)：这条序列内，**实际被选中**到专家 (i) 的比例（带了 (\frac{N_r}{K_rT}) 的归一化缩放，便于不同 (N_r,K_r) 可比）。
+* (s'_{i,t})：对同一时刻 (t) 的所有专家把分数归一化，使它们在该时刻求和为 1（得到“概率质量”）。
+* (P_i)：这条序列内，分到专家 (i) 的**平均概率质量**。
+* (\sum f_i P_i) 越大，说明“模型既想用又实际在用”的专家越集中（热门更热），损失会惩罚它，促使更均衡。
+
+> 也因此旁注写着：**“but the approach is not fully aux loss free..”**
+> ——因为虽然主要靠偏置 (b_i) 来均衡，他们**并没有完全取消**辅助损失，只是把它降为**序列级的小补充项**。
+
+---
+
+## 3) 直觉小结
+
+* **v3 的新意**：给每个专家一个**可动态调整的偏置 (b_i)**，把均衡逻辑从“损失里学”转成“决策门槛里调”，从而**更直接地控制 Top-K 选择**，训练/系统上更稳、更可控。
+* **为什么还留一个 seq-wise loss？**
+  偏置是按更长时间尺度的统计在调，难免某些序列里瞬时不均；加一个**轻量的序列级惩罚**可避免极端情况（比如一条序列几乎全送到同一专家/同一设备）。
+* **工程意义**：偏置法减少对全局/批级统计的强依赖，路由更“自适应”；而小的补充损失避免极端不平衡 —— 两者结合更稳。
+
+如果你愿意，我可以把“只有辅助损失”“只有偏置”“两者结合”这三种路由策略做一个并排对比表，顺带给出推荐的超参调法与常见坑。

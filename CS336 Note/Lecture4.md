@@ -552,9 +552,9 @@ $$
 ### 4.1 按专家加偏置（per-expert biases）
 
 $$
-g'*{i,t}=
+g'_{i,t}=
 \begin{cases}
-s*{i,t}, & \text{若 } s_{i,t}+b_i \in \text{TopK}\big({s_{j,t}+b_j \mid 1\le j\le N_r},,K_r\big)\
+s_{i,t}, & \text{若 } s_{i,t}+b_i \in \text{Topk}\big(\{s_{j,t}+b_j \mid 1\le j\le N_r\},K_r\big)\\
 0, & \text{否则}
 \end{cases}
 $$

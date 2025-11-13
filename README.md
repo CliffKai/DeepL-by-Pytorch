@@ -8,23 +8,28 @@
 
 **Project**:
 - ViT
-- Transformer from scratch(这部分的具体实现请移步cs336:[assignment1-basics
+- Transformer from scratch(这部分的具体实现讲解可以看cs336:[assignment1-basics(In Progress)
 ](https://github.com/CliffKai/assignment1-basics)部分)
 - Build the GPT Tokenizer(In Progress)
 - Qwen2.5vl部署
+- Qwen3omni源码(In Progress)
+- HuggingFace Base Class 讲解(In Progress)
 
 **Paper Reading**:
 - CV
     - MAE
     - ViT
     - MoCo
-    - Swin Transformer(In Progress)
+    - Swin Transformer
+    - SAM
 - MML
     - CLIP
     - Flamingo
     - MML串讲
     - Qwen2.5vl
     - ViLT
+    - DeepSeek-OCR
+    - Qwen3omni
 - NLP
     - BERT
     - Transformer

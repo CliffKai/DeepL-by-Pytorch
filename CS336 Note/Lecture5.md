@@ -87,6 +87,7 @@ SM 是一个功能完备的**独立任务处理单元**，一个典型的 SM 包
 * **Warp Scheduler (Warp 调度器):**
     * **SM 内部的物理逻辑单元**。
     * 它负责决定在下一个时钟周期，SM 应该执行哪一个 Warp。
+    * 也就是说确定哪个 warp 现在 ready 然后就执行这个 ward 现在对应的 instruction。
 
 ### 2.3 核心桥梁：Warp (线程束)
 
@@ -95,9 +96,7 @@ SM 是一个功能完备的**独立任务处理单元**，一个典型的 SM 包
 * **从软件看：** **不能**直接定义 Warp。它是硬件自动对 **Block** 进行**切分**的结果。一个 Block 会被切分为 $(Block内的线程数 / 32)$ 个 Warps。
 * **从硬件看：** **Warp 是 SM 进行调度、执行、和管理的“基本单位”**。硬件（Warp Scheduler）不认识单个的 Thread，它只认识 Warp。
 
----
-
-### 4. 包含关系 (层级结构)
+### 2.4 包含关系 (层级结构)
 
 #### 软件层级
 `Grid` -> `Block` -> `Thread`
@@ -109,46 +108,114 @@ SM 是一个功能完备的**独立任务处理单元**，一个典型的 SM 包
 * 一块 **GPU** 芯片包含多个 **SM**。
 * 一个 **SM** 包含多个 **CUDA Cores** 和多个 **Warp Schedulers** 以及其他单元。
 
----
+### 2.5 软硬件对应关系 or 执行流程
 
-### 5. 软硬件的对应关系 (执行流程)
-
-这部分是把上面所有内容串起来的关键：
-
-1.  **启动 (S -> H):**
-    * 您（软件）启动一个 Kernel，定义了一个 **Grid**（比如由 4096 个 **Blocks** 组成，每个 **Block** 有 256 个 **Threads**）。
-2.  **分配 (S -> H):**
-    * GPU 驱动和硬件（硬件）会将这 4096 个 **Blocks** **分配(assign)** 给 GPU 芯片上所有可用的 **SM**（车间）。
-    * **核心规则 1：** 一个 Block **只会**在 1 个 SM 上运行，**不能**被拆分到 2 个 SM 上。
-    * **核心规则 2：** 1 个 SM **可以同时**管理和运行**多个** Blocks（只要它资源够用）。
-3.  **打包 (S -> S/H):**
-    * 当一个 Block（256 个 Threads）被分配到 SM 上时，SM 会**立即**将其**打包**成 $256 / 32 = 8$ 个 **Warps**。
-4.  **调度 (H -> H):**
-    * SM 内部的 **Warp Schedulers**（小组长）开始从这 8 个 Warps（以及来自 SM 上其他 Blocks 的 Warps）中挑选“准备就绪”的 **Warp**。
-5.  **执行 (H -> H):**
-    * 调度器选中一个 Warp，取出它要执行的**一条指令**。
-    * 它将这条**相同的指令**发送给 SM 内部的 32 个 **CUDA Cores**（工具）。
-    * 这 32 个 Cores **同时**执行这条指令（但操作的是这个 Warp 中 32 个线程各自的**不同数据**）。这就是 **SIMT**。
-
-### 总结表格
-
-| 概念 (中文) | 软件 (S) / 硬件 (H) | 描述 (它是做什么的？) |
-| :--- | :--- | :--- |
-| **Grid (网格)** | **S (软件)** | 程序员启动的一次 Kernel 任务，包含所有 Blocks。 |
-| **Block (块)** | **S (软件)** | 程序员定义的一组**协同工作**的线程。 |
-| **Thread (线程)** | **S (软件)** | 程序员能控制的**最小逻辑单元**。 |
-| | | |
-| **GPU** | **H (硬件)** | 物理芯片。 |
-| **SM (流式多处理器)** | **H (硬件)** | 芯片上的一个完整处理器（“车间”），**Block 在 SM 上运行**。 |
-| **CUDA Core** | **H (硬件)** | SM 内部的最小数学计算单元（“工具”），**Thread 的指令在 Core 上运行**。 |
-| **Warp Scheduler** | **H (硬件)** | SM 内部的调度单元（“小组长”），**它调度 Warps**。 |
-| | | |
-| **Warp (线程束)** | **桥梁 (S/H)** | **硬件调度的基本单位**。由硬件将 Block 自动打包成 32 个线程一组。 |
-
-希望这个严格的分类和对应关系能帮您彻底搞清楚它们！您还有哪个环节感觉不清晰吗？
+1. 程序：我们编写一个程序，定义一个 grid，我门可以在其中定义很多个 block，每个 block 中可以定义很多 thread；
+2. 分配：写好的 CUDA 程序给硬件之后，硬件和 GPU 驱动会将这些 block 分给GPU上可用的 SM，分配有以下规则：
+    - **核心规则 1：** 一个 Block **只会**在 1 个 SM 上运行，**不能**被拆分到 2 个 SM 上。
+    - **核心规则 2：** 1 个 SM **可以同时**管理和运行**多个** Blocks（只要它资源够用）。
+3. 切分：SM 将其内部每一个 block 中的 thread 进行切分，这些 thread 会被切分成 warps，warp 就是一个 SM 能进行调度和执行的最小单元；
+4. 调度：SM 内部的 **Warp Schedulers** 开始从这些 Warps（不单单是一个 block 的，也有可能是来自 SM 上其他 blocks 的 warps）中挑选“准备就绪”的 **Warp**；
+5. 执行：
+    - Warp Schedulers 选中一个 Warp，取出它要执行的**一条指令**。
+    - 它将这条**相同的指令**发送给 SM 内部的 **CUDA Cores**。
+    - 这些 Cores **同时**执行这条指令（但操作的是这些 Warp 中 32 个线程各自的**不同数据**）。这就是 **SIMT**。
 
 ## 3.memory
 
 ![memory](../images/CS336/CS336_Lecture_5_Figure_2.png)
 
 内存访问时延。
+
+![memory](../images/CS336/CS336_Lecture_5_Figure_4.png)
+
+层级越高的 memory 访问的时延越高，内存的层级为：
+registers < shared memory < L1\L2\L3 cache < global memory
+
+# 二、Making ML workloads fast on a GPU
+
+目标：弄懂这张图
+
+![](../images/CS336/CS336_Lecture_5_Figure_5.png)
+
+## 1.What makes ML workloads fast?
+
+![](../images/CS336/CS336_Lecture_5_Figure_6.png)
+
+**“屋顶线模型”（Roofline model）**：常用来分析和可视化计算机（特别是CPU和GPU）性能瓶颈的模型，尤其常用于理解 ML 工作负载的性能。
+
+### 1.1 图表解析
+
+* **纵轴 (Y-axis):** **吞吐量 (Throughput)**，单位是 Gflops（每秒十亿次浮点运算）。这个值越高，表示计算性能越强。
+* **横轴 (X-axis):** **计算强度 (Operational Intensity)**，单位是 flops/byte（每字节数据对应的浮点运算次数）。这个值衡量的是程序“计算的密集程度”——即每从内存中读取1个字节的数据，能进行多少次计算。
+    * **高计算强度（图的右侧）**：意味着计算量远大于数据读取量，例如**密集矩阵乘法 (Dense matrix multiply)**。
+    * **低计算强度（图的左侧）**：意味着程序需要频繁读取内存，但每次读取后只做少量计算，例如**稀疏矩阵乘法 (Sparse matrix multiply)**。
+
+### 1.2 "屋顶"的构成
+
+图中的“屋顶”由两种线构成，代表了硬件性能的两个主要上限：
+
+1.  **水平线 (Horizontal lines):** 代表 **计算性能的上限** (ALU throughput)。这是处理器（CPU或GPU）理论上能达到的最快计算速度。
+2.  **倾斜线 (Slanted lines):** 代表 **内存带宽的上限** (e.g., GPU main memory)。这代表了处理器从不同层级内存（如主内存、共享内存、寄存器）读取数据的最快速度。
+
+### 核心观点：两种性能瓶颈
+
+一个程序（图中的蓝点）的实际性能**永远不会超过**由这两条线共同构成的“屋顶”。因此，程序的性能瓶颈只可能是两者之一：
+
+* **计算受限 (Compute-bound):**
+    * 发生在图的**右侧**。
+    * 程序的计算强度很高（如“密集矩阵乘法”），其性能点撞到了**水平的“屋顶”**。
+    * 这意味着瓶颈在于处理器的计算能力，内存已经足够快了。
+* **内存受限 (Memory-bound):**
+    * 发生在图的**左侧**。
+    * 程序的计算强度很低（如“稀疏矩阵乘法”），其性能点撞到了**倾斜的“屋顶”**。
+    * 这意味着瓶颈在于从内存读取数据的速度。处理器速度很快，但它大部分时间都在“空闲”等待数据。
+
+## 2.How do we make GPUs go fast?
+
+![](../images/CS336/CS336_Lecture_5_Figure_7.png)
+
+### 2.1 Low precision computation
+
+### 2.2 Operator fusion
+
+![](../images/CS336/CS336_Lecture_5_Figure_8.png)
+
+![](../images/CS336/CS336_Lecture_5_Figure_9.png)
+
+### 2.3 recomputation
+
+![](../images/CS336/CS336_Lecture_5_Figure_10.png)
+
+![](../images/CS336/CS336_Lecture_5_Figure_11.png)
+
+![](../images/CS336/CS336_Lecture_5_Figure_12.png)
+
+### 2.4 Memory coalescing and DRAM
+
+![](../images/CS336/CS336_Lecture_5_Figure_13.png)
+
+![](../images/CS336/CS336_Lecture_5_Figure_14.png)
+
+![](../images/CS336/CS336_Lecture_5_Figure_15.png)
+
+### 2.5 tiling
+
+![](../images/CS336/CS336_Lecture_5_Figure_16.png)
+
+![](../images/CS336/CS336_Lecture_5_Figure_17.png)
+
+![](../images/CS336/CS336_Lecture_5_Figure_18.png)
+
+![](../images/CS336/CS336_Lecture_5_Figure_19.png)
+
+![](../images/CS336/CS336_Lecture_5_Figure_20.png)
+## 3.总结
+
+我真的强烈推荐去看一下原课+课件
+
+![](../images/CS336/CS336_Lecture_5_Figure_21.png)
+
+# 三、Using what we know to understand Flash Attention
+
+Flash Attention 就是上述的集大成者

@@ -219,3 +219,5 @@ registers < shared memory < L1\L2\L3 cache < global memory
 # 三、Using what we know to understand Flash Attention
 
 Flash Attention 就是上述的集大成者
+
+具体就不讲了，作业 a2 中会实现，详细请看 a2 实现中的讲解。

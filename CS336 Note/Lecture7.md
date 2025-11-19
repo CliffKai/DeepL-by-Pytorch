@@ -1,4 +1,17 @@
-# 1.Collective Communication
+# Part 1 recap
+
+1. 新的计算单元 —— 数据中心 (New unit of compute – the datacenter)
+2. 多机扩展的理想目标 (What we want from multi-machine scaling) :
+   - 线性内存扩展 (Linear memory scaling)
+   - 线性算力扩展 (Linear compute scaling)
+3. 简单的集合通信原语 (Simple collective comms primitives)
+
+这三条便是构建现代 AI 基础设施的三大基石：
+1. 宏观架构：把数据中心当成一台电脑用。
+2. 性能目标：加多少卡，就得涨多少显存和速度（拒绝边际效应递减）。
+3. 通信基础：需要标准化的通信方式来连接这些卡。
+
+> 课程中，在评估一个分布式系统的性能时，通过计算**集合通信原语（Collective Communications Primitives）**的数量来进行推理，不会在这里深入探讨网速、带宽、延迟毫秒数等，也不去探讨通信算法的底层实现细节
 
 ## 1.1 basics about collective communication
 
@@ -21,6 +34,8 @@
     2.  **All (全部):** 将这个最终的计算结果（`out`）分发给**所有**的 "rank"。
 * **操作后:** **所有 "rank"** 都拥有了相同的、归约后的最终结果 `out`。
 * **常见用途:** 在数据并行训练中，每个GPU计算出自己的梯度（`in0`...`in3`），`All reduce` 用来计算所有梯度的总和，并将这个总和（`out`）分发回给每个GPU，以便它们能同步更新模型。
+
+* **通信量：** 一次 all reduce 的通信量大概是本次 all reducing 的数据的两倍。
 
 ### 2） Broadcast (广播)
 
@@ -56,9 +71,87 @@
 
 ![Figure_2](../images/CS336/CS336_Lecture_7_Figure_3.png)
 
-![Figure_3](../images/CS336/CS336_Lecture_7_Figure_4.png)
+这两者在结果和性能能耗等各方面就是一样的，这里的意思就是 all reduce 可以看作是 reduce-scatter + all-gather 两次操作之和。
+
+还有一个角度可以更清晰的理解为什么等式两边等价，那就是：为什么一次 All-Reduce 操作中，**每张 GPU** 需要发送和接收的数据量大约是数据量的 2 倍？
+> 这里指 **Ring All-Reduce**（这是目前深度学习训练中最常用的算法，如 NVIDIA NCCL 库所采用）
+
+
+如果待传输数据大小（比如梯度）为 $M$ 字节，GPU 数量为 $N$，那么每张 GPU 需要传输的总数据量是：
+$$\text{Traffic per GPU} = 2 \cdot \frac{N-1}{N} \cdot M$$
+当 GPU 数量 $N$ 较大时（比如 $N \ge 8$），$\frac{N-1}{N}$ 趋近于 1，因此我们通常直接估算为：**$2M$**。
+Ring All-Reduce 详细推导过程:
+为了理解这个 $2M$ 是怎么来的，我们需要看 Ring All-Reduce 算法的两个阶段。假设有 $N$ 个 GPU，围成一个环：
+#### 第一阶段：Scatter-Reduce（分散归约）
+* **目标**：把巨大的梯度向量切成 $N$ 块，让每个 GPU 最终负责计算其中 1 块的总和。
+* **过程**：每个 GPU 将自己的数据传给下一个 GPU，经过 $N-1$ 步传输后，每个 GPU 都拥有了它负责的那一小块数据的“全剧终总和”。
+* **通信量**：每个 GPU 发送了 $\frac{N-1}{N} \times M$ 的数据。
+#### 第二阶段：All-Gather（全收集）
+* **目标**：现在每个 GPU 只知道自己那一小块的和，它需要把这个和分享给其他所有 GPU，同时从其他 GPU 拿回剩下的部分。
+* **过程**：每个 GPU 把它手里那块计算好的总和传给下一个 GPU，再经过 $N-1$ 步。
+* **通信量**：每个 GPU 又发送了 $\frac{N-1}{N} \times M$ 的数据。
+#### 总计
+$$\text{Total} = \text{Scatter-Reduce} + \text{All-Gather} = \frac{N-1}{N} M + \frac{N-1}{N} M = 2 \frac{N-1}{N} M$$
+
+**基本就是：梯度多大，通信量就是它的 2 倍。**
+
+> 这是详细的理解过程：
+> #### **1. 准备阶段**
+> * **硬件：** $N$ 个 GPU，标记为 $GPU_0, GPU_1, \dots, GPU_{N-1}$。
+> * **数据：** 模型梯度总大小为 $M$（字节）。
+> * **切分：** 将每个 GPU 上的梯度向量逻辑切分为 $N$ 个小块（Chunks）。
+>     * **单块大小：** $\frac{M}{N}$。
+>     * **标记：** $GPU_i$ 持有的数据第 $j$ 块数据记为 $G_{i,j}$。
+> #### **2. 计算阶段 (Local Computation)**
+> * 各 GPU 根据分配给自己的那部分 Batch 数据，独立进行反向传播。
+> * **结果：**
+>     * $GPU_0$ 算出自己的梯度向量 $G_0$（包含 $G_{0,0}, \dots, G_{0,N-1}$）。
+>     * $GPU_1$ 算出自己的梯度向量 $G_1$（包含 $G_{1,0}, \dots, G_{1,N-1}$）。
+>     * ... 以此类推。
+>     * *此时，所有 GPU 的梯度数值都不一样。*
+> #### **3. 第一阶段：Reduce-Scatter (分散求和)**
+> * **目标：** 让每个 GPU 负责计算**其中某一块**梯度的全局总和。
+>     * 让 $GPU_0$ 拥有第 0 块的全局和：$\sum_{i=0}^{N-1} G_{i,0}$。
+>     * 让 $GPU_1$ 拥有第 1 块的全局和：$\sum_{i=0}^{N-1} G_{i,1}$。
+>     * ...
+>     * 让 $GPU_k$ 拥有第 $k$ 块的全局和。
+> * **过程：**
+>     * 为了凑齐某一块的全局和，需要所有其他 $N-1$ 个 GPU 把它们手里的那块对应数据传出来。
+>     * 每个 GPU 都需要把自己手里**除了自己负责的那一块以外**的所有数据块发送出去。
+> * **通信量计算 (每张卡)：**
+>     * 总共 $N$ 块，自己留 1 块，发送 $N-1$ 块。
+>     * 发送量 = $(N-1) \times \text{单块大小}$
+>     * $$\text{Traffic}_{scatter} = (N-1) \times \frac{M}{N} = \frac{N-1}{N} M$$
+> #### **4. 第二阶段：All-Gather (全收集/广播)**
+> * **当前状态：** Reduce-Scatter 结束后，$GPU_k$ 手里只有第 $k$ 块的完美梯度的和，其他 $N-1$ 块它是缺失的（或者说是旧的）。
+> * **目标：** 让每个 GPU 都拥有**完整的**、包含所有 $N$ 块的全局梯度和。
+> * **过程：**
+>     * 每个 GPU 把自己刚刚算好的、负责的那**唯一一块**完整梯度和，分享给其他所有的 $N-1$ 个 GPU。
+>     * （在 Ring 算法中，这意味着这块数据要在环里转 $N-1$ 次才能到达所有人手中）。
+> * **通信量计算 (每张卡)：**
+>     * 每个 GPU 需要发送自己负责的那 1 块数据给其他 $N-1$ 个节点（逻辑上）。
+>     * 发送量 = $(N-1) \times \text{单块大小}$
+>     * $$\text{Traffic}_{gather} = (N-1) \times \frac{M}{N} = \frac{N-1}{N} M$$
+> #### **5. 总计 (Total Communication Cost)**
+> 将两个阶段的通信量相加：
+> $$
+> \text{Total Traffic} = \text{Reduce-Scatter} + \text{All-Gather}
+> $$
+> $$
+> = \left( \frac{N-1}{N} M \right) + \left( \frac{N-1}{N} M \right)
+> $$
+> $$
+> = 2 \cdot \frac{N-1}{N} \cdot M
+> $$
+> #### **结论：**
+> 当 $N$（GPU 数量）很大时，比如 $N=8, 64, 1024$：
+> $$\frac{N-1}{N} \approx 1$$
+> **所以，单次 All-Reduce 操作，每张 GPU 的总通信量近似为：**
+> $$\mathbf{2M}$$
 
 ### 1） TPU 与 GPU的设计对比
+
+![Figure_3](../images/CS336/CS336_Lecture_7_Figure_4.png)
 
 | 维度 | **Google TPU** | **NVIDIA GPU** |
 | :--- | :--- | :--- |
@@ -100,5 +193,52 @@
       * **原因：** 在 Mesh 网络中，如果 TPU 1 想发数据给 TPU 56，数据可能需要经过 2-\>3-\>...-\>55 这么多跳。
           * 这不仅增加了**延迟**（Latency）。
           * 更糟糕的是会造成**数据拥塞**（Congestion）。中间的芯片不仅要算自己的数，还得帮别人传数据，带宽被挤占了。
-      * **结论：** 虽然 Google 也可以通过软件优化 MoE，但在大规模 MoE 训练上，TPU 的网格结构会面临严重的通信瓶颈，效率通常不如同档次的 GPU 集群。
+      * **结论：** 虽然 TPU 也可以通过软件优化 MoE，但在大规模 MoE 训练上，TPU 的网格结构会面临严重的通信瓶颈，效率通常不如同档次的 GPU 集群。
 
+# Part 2 Standard LLM parallelization primitives
+
+这一部分讲述的是标准 LLM 的并行化原语。
+
+并行化训练 LLM 的三大核心技术路线：
+1. Data parallelism (数据并行，分割数据)：
+   - Naïve data parallel
+   - ZeRO levels 1-3
+2. Model parallelism (模型并行，分割模型，训练大模型的方法)：
+   - Pipeline parallel (流水线并行)
+   - Tensor parallel (张量并行)
+3. Activation parallelism (激活值并行，处理长序列)：
+   - Sequence parallel (序列并行)
+
+## 2.1 Naïve data parallel
+
+### 1）.**“朴素数据并行”（Naïve Data Parallelism）** 的基本原理及其优缺点。
+
+它是分布式训练中最基础的形式，理解了它，就能理解为什么后来会出现 ZeRO、FSDP 这些更高级的技术。
+
+1. 随机梯度下降（SGD）的标准公式：
+$$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
+* **含义：** 为了更新模型参数 $\theta$，我们需要计算一个批次（Batch Size = $B$）中所有数据的梯度总和。
+* **挑战：** 当 $B$ 很大时，单张卡算不过来，或者存不下这么多数据。
+
+2. Naïve parallelism 的做法：
+* **核心策略：** 将这个大小为 $B$ 的大批次数据，切分成 $M$ 份（假设有 $M$ 台机器/GPU）。
+* **分工：** 每台机器只拿到一小部分数据（$B/M$），算出这一小部分的梯度。
+* **同步：** 算完后，所有机器之间进行通信（Exchange gradients），把大家的梯度加起来平均，确保每个人更新后的模型参数是一模一样的。
+
+3. How does this do?
+这部分是这张图的精华，它从三个维度评估了这种简单粗暴的方法：
+
+* **计算扩展性 (Compute scaling) —— 好**
+    * "each GPU gets B/M examples."
+    * 任务被完美平分了。GPU 越多，每张卡处理的数据越少，计算速度越快。
+
+* **通信开销 (Communication overhead) —— 一般**
+    * "transmits 2x # params every batch."
+    * 这正好验证了你刚才问的问题！每跑完一个 Batch，都需要进行一次 All-Reduce，通信量是模型参数量的 **2 倍**。
+    * 如果 Batch 很大（计算时间很长），这部分通信时间可以被掩盖；如果模型太大或 Batch 太小，通信就会成为瓶颈。
+
+* **内存扩展性 (Memory scaling) —— 极差**
+    * "none. Every GPU needs # params at least"
+    * **这是朴素数据并行的最大死穴。**
+    * 即使你有 1000 张 GPU，**每张 GPU 都必须完整地存储一份模型参数**。
+    * **结果：** 如果模型是 80GB，而 GPU 只有 40GB 显存，哪怕有 1 万张卡也跑不起来，因为单卡连模型都装不下。

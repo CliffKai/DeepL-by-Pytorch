@@ -343,7 +343,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
         * G1 用**一样**的总 E，去更新自己的 B, C, D，算出**一模一样**的新 A。
         * ...
         * **结局：** 4张卡显存全满，且存的数值完全一样。
-#### 1. ZeRO Stage 1：切分优化器 ($P_{os}$)
+#### 2. ZeRO Stage 1：切分优化器 ($P_{os}$)
 既然 Update 步骤大家算的都一样，那我们**分工更新**。
 * **存储（显存里有什么）：**
     * **A (权重):** 大家都有完整的 $L_1-L_4$（为了算梯度）。
@@ -362,7 +362,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
         * G0 把新的 $L_1$ 权重 A 广播给所有人。
         * G1 把新的 $L_2$ 权重 A 广播给所有人...
         * **结局：** 大家又都有了完整的新 A，准备下一轮。**节省了 3/4 的 B,C,D 显存。**
-#### 2. ZeRO Stage 2：切分梯度 ($P_{os+g}$)
+#### 3. ZeRO Stage 2：切分梯度 ($P_{os+g}$)
 问题：G0 既然只负责更新 $L_1$，那它为什么要一直囤积 $L_2, L_3, L_4$ 的梯度 E 呢？
 
 * **存储（显存里有什么）：**
@@ -452,7 +452,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * 拆开做，总流量没变，还是 $1 + 1 = 2$。
 * **结论：** **完全没理由不用 Stage 1/2**。显存省了，速度还没变慢（CPU 开销极小，可忽略）。
 
-1. ZeRO Stage 3
+3. ZeRO Stage 3
 * **"3 * # param – 1.5x comm cost"**（3 倍参数量，也就是 1.5 倍的通信成本）。
 * **为什么是 3 倍？** 让我们回到刚才的例子算一下：
     1.  **Forward:** 为了计算，大家要借参数 $\rightarrow$ **All-Gather (1 倍)**。
@@ -481,7 +481,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * 能塞下 **530 亿 (53.33B)**。
     * **质的飞跃！** 从 6B 到 53B，在硬件不变的情况下，模型容量扩大了 **8 倍**。这证明了“切分一切”的威力。
 
-##### 2：数据并行的隐患 A - 批次大小 (Issues remain with data parallel – compute scaling)
+##### 数据并行的隐患 A - 批次大小 (Issues remain with data parallel – compute scaling)
 **核心信息：** 数据并行（包括 ZeRO）有一个**数学上的死穴**。
 
 * **原理：** 数据并行是“堆人头”。加一张卡，全局 Batch Size (Global Batch Size) 就要变大一点。
@@ -490,7 +490,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * **Ineffective Scaling (无效扩展):** 深度学习理论告诉我们，Batch Size 太大，模型的收敛效果会变差（或者说训练效率变低）。
 * **结论：** 显卡不能无限制地加下去，因为 Batch Size 不能无限制地变大。
 
-##### 3：数据并行的隐患 B - 效率与激活值 (Issues remain... models don't fit)
+##### 数据并行的隐患 B - 效率与激活值 (Issues remain... models don't fit)
 **核心信息：** ZeRO 虽然能塞下模型，但在大规模下**速度可能会崩**，且它**漏掉了一个显存大户**。
 
 ![Figure_4](../images/CS336/CS336_Lecture_7_Figure_6.png)
@@ -506,3 +506,247 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * 对于超长上下文（Context Length）的模型，Activation 占用的显存可能比模型本身还大。ZeRO 对此束手无策。
 
 > 为什么会存储完整的激活值呢？因为在 ZeRO 中，每个模型只是负责的部分不同，但是所有的前向过程都还是要做的。
+
+## 2.2 Model Parallelism:Pipeline Parallelism（Layer-wise parallel）
+
+### 1） 详细讲解
+
+![Figure_4](../images/CS336/CS336_Lecture_7_Figure_7.png)
+
+#### 1. 核心概念：按层切分（Cuts up layers）
+
+* **硬件分配：**
+    * **Layer 0** 被分配给 **GPU 0**
+    * **Layer 1** 被分配给 **GPU 1**
+    * **Layer 2** 被分配给 **GPU 2**
+    * **Layer 3** 被分配给 **GPU 3**
+* 这意味着每个 GPU 只负责模型的一部分参数和计算。
+
+#### 2. 数据流向（Data Flow）
+
+* **前向传播（Forward Pass）**
+    * 数据从 Layer 0 开始输入。
+    * GPU 0 计算完毕后，将输出的 **激活值（Activations）** 传递给 GPU 1。
+    * GPU 1 接着计算，传给 GPU 2，以此类推，直到 GPU 3 输出最终结果（并计算 Loss）。
+
+* **反向传播（Backward Pass）**
+    * 计算完 Loss 后，需要更新参数。
+    * GPU 3 计算它那一层的梯度，并将 **部分梯度（Partial Gradients）** 回传给 GPU 2。
+    * GPU 2 根据传来的梯度继续计算，回传给 GPU 1，以此类推，直到回到 GPU 0。
+
+这四张图串联起来，非常完整地讲述了**流水线并行（Pipeline Parallelism）**的故事：从朴素方法的**问题**，到**解决方案**，再到**存在的理由**以及**性能瓶颈**。
+
+这是一套非常经典的深度学习系统课程（如 CS231n 或并行计算相关课程）的讲义逻辑。我将为你逐张图详细拆解：
+
+### 2） 深入分析
+
+#### 问题：效率低
+
+![Figure_4](../images/CS336/CS336_Lecture_7_Figure_8.png)
+
+* **核心观点：** 这种方法的 GPU 利用率（Utilization）非常糟糕。
+* **数学解释：** 如果有 $n$ 个 GPU，那么每个 GPU 只有 $\frac{1}{n}$ 的时间在工作。
+* **原因：**
+    * 图中的阶梯状色块展示了时间轴。
+    * 当 GPU 0 在计算第一层的 Forward ($F_0$) 时，GPU 1, 2, 3 都在**闲置（Idle）**。
+    * 数据传给 GPU 1 后，GPU 0 变成了闲置状态，直到反向传播（Backward, $B_0$）的数据传回来。
+    * **结论：** 大部分时间 GPU 都在“等”，这造成了极大的算力浪费。
+
+#### 解决方案：引入“微批次” (Micro-batches)
+
+![Figure_4](../images/CS336/CS336_Lecture_7_Figure_9.png)
+
+为了解决“闲置”问题，我们引入了流水线并行（Pipeline Parallelism，通常指 GPipe 这种模式）。
+
+* **核心机制：**
+    * 不把整个 Batch（大批次）一次性塞进去，而是把它切分成多个小的 **Micro-batches（微批次）**。
+    * 如图所示，$F_{0,0}, F_{0,1}, F_{0,2} \dots$ 代表第 0 组数据的第 0、1、2 个微批次。
+    * **流水线填充：** 当 GPU 0 处理完第一个微批次并发给 GPU 1 后，它**立刻**开始处理第二个微批次，而不是干等着。
+* **气泡（Bubble）：**
+    * 图中中间和角落留白的部分被称为 **"Bubble" (气泡)**。这代表虽然比朴素方法好多了，但仍然存在部分 GPU 在等待数据“填满”流水线或“排空”流水线的时间。
+    * 气泡时间占比公式：$\frac{n_{stages}-1}{n_{micro}}$。
+    * $n_{stages}$ 是 GPU 的数量，$n_{micro}$ 是微批次的数量。**微批次切得越多（$n_{micro}$ 越大），气泡占总时间的比例就越小，效率越高。**
+
+#### 既然有气泡，为什么还要用它？
+
+![Figure_4](../images/CS336/CS336_Lecture_7_Figure_10.png)
+
+这种方法实现起来很麻烦，而且还有 bubble 浪费，为什么不直接用其他方法（比如数据并行 DDP）？
+
+* **原因 1：节省显存 (Saves Memory)**
+    * 相比于 DDP（分布式数据并行，每个 GPU 都要存一份完整的模型副本），流水线并行将模型切分了。每个 GPU 只存 $\frac{1}{n}$ 的模型参数。这使得我们可以训练**单卡显存放不下**的超大模型。
+* **原因 2：通信特性好 (Good Communication)**
+    * 相比于 FSDP（全分片数据并行，通信量巨大且是多对多），流水线并行的通信是 **点对点 (Point-to-Point)** 的。
+    * GPU 0 只和 GPU 1 说话，GPU 1 只和 GPU 2 说话。
+    * 传输的数据量仅限于**激活值 (Activations)**，大小为 $b \times s \times h$ (Batch $\times$ Sequence $\times$ Hidden size)。
+* **应用场景：**
+    * 正因为它是点对点通信，它非常适合**跨节点 (Inter-node)** 训练。比如有两台机器，中间网线比较慢，用流水线并行正好，因为不需要两台机器的所有显卡高吞吐的互通数据。
+
+#### 限制：性能高度依赖 Batch Size
+
+![Figure_4](../images/CS336/CS336_Lecture_7_Figure_11.png)
+
+在使用流水线并行时必须注意的超参数。
+
+* **图表：**
+    * X 轴：流水线并行的大小（GPU 数量）。
+    * Y 轴：每个 GPU 的实际算力（TFLOPS）。
+* **两条线的对比：**
+    * **橙线 (Batch size = 128)：** 即使 GPU 数量增加，每个 GPU 的效率依然很高且平稳。这是因为 Batch size 够大，切分出的微批次（Micro-batches）够多，成功“掩盖”了气泡时间。
+    * **蓝线 (Batch size = 8)：** 随着 GPU 数量增加，效率**急剧下降**。因为 Batch 太小，没法切分出足够的微批次，导致大部分时间 GPU 都在闲置。
+* **结论：** 要想流水线并行效率高，**必须使用大 Batch Size**。
+
+### 3）如何进一步优化
+
+#### 1. Zero Bubble Pipelining（算法层面）
+
+![Figure_4](../images/CS336/CS336_Lecture_7_Figure_13.png)
+
+这张图介绍了一种非常巧妙的算法优化，核心思想是将反向传播拆解，利用时间差来填充气泡。
+
+##### 优化核心
+
+通常我们认为反向传播（Backward）是一个整体，但图中指出它可以拆分为两个独立的部分：
+1.  **计算输入的梯度（Backpropagating activations, $B$）：** 计算 $\frac{\partial L}{\partial x}$。这是**紧急任务**，因为前一个 GPU（Layer $i-1$）急需这个梯度才能开始它自己的反向传播。
+2.  **计算权重的梯度（Computing weight gradients, $W$）：** 计算 $\frac{\partial L}{\partial W}$。这是**非紧急任务**，只要在最终更新参数（Optimizer step）之前算完就行，不需要传给别的 GPU。
+
+##### 调度策略（Scheduling）
+
+* **旧方法（Figure 2: 1F1B）：** 可以看到大片的空白（气泡）。因为 GPU 必须按顺序做完 F（前向）和 B（反向），导致等待时间很长。
+* **新方法（Figure 3: Handcrafted schedules）：**
+    * 图中的 **$B$（浅蓝色块）** 代表计算输入梯度，它必须尽快传给上一个 GPU。
+    * 图中的 **$W$（绿色块）** 代表计算权重梯度，它被“塞”进了原本是气泡的空白时间里。
+    * **结果：** 整个时间线被填满了（变成了实心的矩形），几乎实现了 **Zero Bubble（零气泡）**，GPU 利用率达到 100%。
+
+#### 2. Trading bandwidth for utilization（架构层面）
+
+
+![Figure_4](../images/CS336/CS336_Lecture_7_Figure_12.png)
+
+这种方法通常被称为**交错式流水线（Interleaved Pipeline）**。
+
+##### 核心思想
+* **上方图（朴素流水线）：**
+    * 每个 GPU 负责连续的一大块层。比如 GPU 1 负责 Layer 1-4，GPU 2 负责 Layer 5-8。
+    * 能看到明显的深灰色区域（闲置/气泡）。
+* **下方图（交错式流水线）：**
+    * **"Assign multiple stages to each device"**：每个 GPU 不再只负责一大块，而是负责多个“小块”。
+    * 例如：GPU 1 可能负责 Layer 1-2 **和** Layer 9-10；GPU 2 负责 Layer 3-4 **和** Layer 11-12。
+    * 这意味着数据在处理过程中，会多次回到同一个 GPU。
+
+##### 优缺点权衡（Trade-off）
+* **优点（Utilization）：** 气泡变小了。因为每个阶段（Stage）变短了，流水线“填满”和“排空”所需的时间显著减少。图中下方的彩色块更加紧密，深灰色的闲置区域明显变少了。
+* **缺点（Bandwidth）：** 通信量变大了。
+    * 原本数据只需要在 GPU 1 $\rightarrow$ GPU 2 $\rightarrow$ ... 传一次。
+    * 现在数据要在 GPU 之间来回跳跃（GPU 1 $\rightarrow$ GPU 2 $\rightarrow$ ... $\rightarrow$ GPU 1 $\rightarrow$ GPU 2）。
+    * 这就显著增加了**通信带宽**的压力。
+
+#### 3. Tensor Parallelism
+
+**张量并行（简称 TP）**。
+
+如果说之前的“流水线并行”是横着切蛋糕（按层切），那么“张量并行”就是**竖着切蛋糕（按计算图的宽度切）**。
+
+##### 核心理念：按宽度切分（Width Axes）
+
+![Figure_14](../images/CS336/CS336_Lecture_7_Figure_14.png)
+![Figure_15](../images/CS336/CS336_Lecture_7_Figure_15.png)
+
+* **基本原理（图 14）：**
+    * 流水线并行是把深度（Depth）切开，比如 Layer 1 给 GPU A，Layer 2 给 GPU B。
+    * 张量并行则是把**同一个矩阵乘法**切开。
+    * 图 14 展示了简单的数学原理：要把输入 $X$ 乘以大矩阵 $A$，我们可以把 $A$ 拆成两半 $A_1$ 和 $A_2$。GPU 1 算 $X \times A_1$，GPU 2 算 $X \times A_2$，最后拼起来就行。
+
+* **在神经网络中的实现（图 15 - 经典的 Megatron-LM 架构）：**
+    * 这是一个典型的 MLP（多层感知机）模块：Linear $\rightarrow$ GeLU $\rightarrow$ Linear。
+    * **第一层（左边）：** 采用 **列并行（Column Parallel）**。权重 $A$ 被竖着切分，两个 GPU 独立计算，得到切分后的输出 $Y_1, Y_2$。
+    * **第二层（右边）：** 采用 **行并行（Row Parallel）**。为了配合上一层的输出，第二层的权重 $B$ 被横着切分。
+    * **All-Reduce（关键通信）：** 注意最右边的绿色块 $g$。虽然中间计算不需要通信，但在最后输出 $Z$ 之前，必须把两个 GPU 的结果加起来（Sum）。这就需要由 **All-Reduce** 操作来完成。
+
+##### 优缺点：与流水线并行的对比
+
+![Figure_16](../images/CS336/CS336_Lecture_7_Figure_16.png)
+
+这张图非常重要，它解释了为什么我们不能只用张量并行。
+
+* **优点（Pros）：**
+    * **没有气泡（No bubble）：** 所有 GPU 始终在同时工作，不需要像流水线那样“等数据流过来”。
+    * **适合小 Batch Size：** 不需要为了填满流水线而堆积大量的 micro-batches。
+* **缺点（Cons）：**
+    * **通信量巨大（Much larger communication）：**
+        * 流水线并行只需要传少量的激活值（点对点通信）。
+        * 张量并行在每一层（Layer）结束时都需要进行 **All-Reduce**。这意味着所有 GPU 都要互相广播数据。
+    * **通信频率极高：** 每一层都要通讯，而不是每几层才通一次。
+
+##### 应用场景：什么时候用 TP？
+
+![Figure_17](../images/CS336/CS336_Lecture_7_Figure_17.png)
+
+* **结论：仅在单机内部使用（Intra-node）。**
+    * 因为 TP 的通信量极大，它必须依赖极高带宽的连接（如 NVIDIA 的 **NVLink**）。
+    * 通常一个计算节点（Node）里有 8 张 GPU，它们之间有 NVLink。所以我们通常把 TP 的大小限制在 8 以内。
+    * 一旦跨机器（跨节点），走的是以太网或 InfiniBand，速度远不如 NVLink，使用 TP 会导致速度慢到无法接受。
+
+* **图表：**
+    * 柱状图显示了随着 TP 规模增大（2 -> 4 -> 8 -> 16...），每个 GPU 的吞吐量（效率）在下降。
+    * 特别是当 TP=32 时（肯定跨节点了），效率暴跌 65.6%。
+
+### 4） **如何通过序列并行（Sequence Parallelism）解决激活值（Activations）显存占用过大的问题。**
+
+这组图的逻辑非常严密，我们可以按照“发现问题 -> 分析瓶颈 -> 提出方案 -> 最终效果”的顺序来解读。
+
+#### 1. 发现问题：显存大头其实是“激活值”
+
+![Figure_18](../images/CS336/CS336_Lecture_7_Figure_18.png)
+![Figure_19](../images/CS336/CS336_Lecture_7_Figure_19.png)
+
+* **图 19 (Memory is dynamic):** 这张堆叠面积图展示了训练过程中的显存变化。
+    * 底部的绿色/黄色（参数和优化器状态）是**静态的**，虽然大但比较稳定。
+    * 中间红色的波峰（**Activation**）是**动态的**，随着前向传播急剧增长。
+* **图 19 (Bar chart):** 对比。
+    * 蓝色柱子（参数显存）可以通过我们之前讲的 Tensor Parallel (TP) 和 Pipeline Parallel (PP) 线性减少（切分到不同 GPU 上）。
+    * 但是**绿色柱子（激活值显存）** 并没有显著减少，甚至在 1T 参数的模型中，激活值占用的显存远超参数本身。
+    * **结论：** 只切分参数是不够的，如果不管激活值，显存很快就会爆掉。
+
+#### 2. 分析瓶颈：张量并行（TP）做得还不够彻底
+
+![Figure_20](../images/CS336/CS336_Lecture_7_Figure_20.png)
+![Figure_21](../images/CS336/CS336_Lecture_7_Figure_21.png)
+
+这里通过数学公式量化了问题：
+* **基线公式：** 单层激活值显存 $\approx sbh(34 + \dots)$。其中 $s$ 是序列长度，$b$ 是批次大小，$h$ 是隐藏层维度。
+* **TP 的局限性：** 采用了张量并行（Tensor Parallel, 大小为 $t$）后，公式变成了：
+    $$sbh(10 + \frac{24}{t} + \dots)$$
+* **原理：**
+    * $\frac{24}{t}$：这部分很好，对应矩阵乘法（Linear Layers），被 $t$ 个 GPU 分摊了，显存占用随 GPU 数量线性下降。
+    * **10 (The Stubborn Constant)：** 这部分**没有被除以 $t$**！这意味着无论你加多少个 GPU，这部分显存占用**雷打不动**。
+    * **来源：** 这“顽固的 10”来自 **LayerNorm** 和 **Dropout** 以及相关输入。在标准的 TP 中，这些操作需要在每个 GPU 上存一份完整的副本（Replicated），导致无法节省显存。
+
+#### 3. 解决方案：序列并行（Sequence Parallelism）
+
+![Figure_22](../images/CS336/CS336_Lecture_7_Figure_22.png)
+
+为了消灭那个顽固的常数“10”，我们引入了**序列并行（Sequence Parallelism, SP）**。
+
+* **核心思想：**
+    * 既然 LayerNorm 和 Dropout 是逐元素（Point-wise）操作，它们在序列维度（Sequence Dimension）上是独立的。
+    * 我们不需要在每个 GPU 上都存完整的 $s$（序列长度），而是把序列切开，每个 GPU 只存 $\frac{s}{t}$。
+* **流程变化（如图所示）：**
+    * **TP 区域（Tensor Parallel）：** 依然负责繁重的矩阵乘法（Linear, Attention）。
+    * **SP 区域（Sequence Parallel）：** 在进入 LayerNorm/Dropout 之前，不做 All-Gather（收集全量数据），而是保持切分状态，只计算自己那一部分序列的 LayerNorm/Dropout。
+* **通信变化：** 把通信操作（$g$ 和 $\bar{g}$）的位置微调，将 All-Reduce 拆解为 Reduce-Scatter 和 All-Gather，巧妙地穿插在计算中。
+
+#### 4. 最终效果：真正的线性扩展
+
+![Figure_23](../images/CS336/CS336_Lecture_7_Figure_23.png)
+
+这张表格总结了进化的终局：
+
+1.  **No Parallel:** 系数是 $34$。
+2.  **Tensor Parallel (TP):** 系数是 $10 + \frac{24}{t}$。（那个 10 拖了后腿）。
+3.  **Tensor + Sequence Parallel (SP):** 系数变成了 $\frac{34}{t}$！
+    * 注意：原本的 $10$ 和 $24$ 现在都被 $t$ 除掉了。
+    * **意义：** 激活值显存终于实现了**完全的线性扩展（Full Linear Scaling）**。如果你显存不够，加一倍 GPU，单卡的激活值显存占用就确确实实减半。
+
+这套技术（通常在 NVIDIA 的 **Megatron-LM** 项目中实现）解决了大模型训练中显存优化的最后一块短板：
+通过**序列并行（Sequence Parallelism）**，将 LayerNorm 和 Dropout 等操作沿序列维度切分，消除了张量并行中遗留的显存冗余，使得超长序列（Long Sequence）的大模型训练成为可能。

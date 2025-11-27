@@ -665,7 +665,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
 
 ##### 优缺点：与流水线并行的对比
 
-![Figure_16](../images/CS336/CS336_Lecture_7_Figure_16.png)
+![Figure_17](../images/CS336/CS336_Lecture_7_Figure_17.png)
 
 这张图非常重要，它解释了为什么我们不能只用张量并行。
 
@@ -680,7 +680,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
 
 ##### 应用场景：什么时候用 TP？
 
-![Figure_17](../images/CS336/CS336_Lecture_7_Figure_17.png)
+![Figure_16](../images/CS336/CS336_Lecture_7_Figure_16.png)
 
 * **结论：仅在单机内部使用（Intra-node）。**
     * 因为 TP 的通信量极大，它必须依赖极高带宽的连接（如 NVIDIA 的 **NVLink**）。

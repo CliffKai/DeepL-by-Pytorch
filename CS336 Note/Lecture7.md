@@ -641,13 +641,13 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * 现在数据要在 GPU 之间来回跳跃（GPU 1 $\rightarrow$ GPU 2 $\rightarrow$ ... $\rightarrow$ GPU 1 $\rightarrow$ GPU 2）。
     * 这就显著增加了**通信带宽**的压力。
 
-#### 3. Tensor Parallelism
+## 2.3 Model Parallelism:Tensor Parallelism
 
 **张量并行（简称 TP）**。
 
 如果说之前的“流水线并行”是横着切蛋糕（按层切），那么“张量并行”就是**竖着切蛋糕（按计算图的宽度切）**。
 
-##### 核心理念：按宽度切分（Width Axes）
+### 1）核心理念：按宽度切分（Width Axes）
 
 ![Figure_14](../images/CS336/CS336_Lecture_7_Figure_14.png)
 ![Figure_15](../images/CS336/CS336_Lecture_7_Figure_15.png)
@@ -663,7 +663,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * **第二层（右边）：** 采用 **行并行（Row Parallel）**。为了配合上一层的输出，第二层的权重 $B$ 被横着切分。
     * **All-Reduce（关键通信）：** 注意最右边的绿色块 $g$。虽然中间计算不需要通信，但在最后输出 $Z$ 之前，必须把两个 GPU 的结果加起来（Sum）。这就需要由 **All-Reduce** 操作来完成。
 
-##### 优缺点：与流水线并行的对比
+### 2）优缺点：与流水线并行的对比
 
 ![Figure_17](../images/CS336/CS336_Lecture_7_Figure_17.png)
 
@@ -678,7 +678,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
         * 张量并行在每一层（Layer）结束时都需要进行 **All-Reduce**。这意味着所有 GPU 都要互相广播数据。
     * **通信频率极高：** 每一层都要通讯，而不是每几层才通一次。
 
-##### 应用场景：什么时候用 TP？
+### 3）应用场景：什么时候用 TP？
 
 ![Figure_16](../images/CS336/CS336_Lecture_7_Figure_16.png)
 
@@ -691,16 +691,14 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * 柱状图显示了随着 TP 规模增大（2 -> 4 -> 8 -> 16...），每个 GPU 的吞吐量（效率）在下降。
     * 特别是当 TP=32 时（肯定跨节点了），效率暴跌 65.6%。
 
-### 4） **如何通过序列并行（Sequence Parallelism）解决激活值（Activations）显存占用过大的问题。**
+## 2.4 **如何通过序列并行（Sequence Parallelism）解决激活值（Activations）显存占用过大的问题。**
 
-这组图的逻辑非常严密，我们可以按照“发现问题 -> 分析瓶颈 -> 提出方案 -> 最终效果”的顺序来解读。
-
-#### 1. 发现问题：显存大头其实是“激活值”
+### 1）发现问题：显存大头其实是“激活值”
 
 ![Figure_18](../images/CS336/CS336_Lecture_7_Figure_18.png)
 ![Figure_19](../images/CS336/CS336_Lecture_7_Figure_19.png)
 
-* **图 19 (Memory is dynamic):** 这张堆叠面积图展示了训练过程中的显存变化。
+* **图 18 (Memory is dynamic):** 这张堆叠面积图展示了训练过程中的显存变化。
     * 底部的绿色/黄色（参数和优化器状态）是**静态的**，虽然大但比较稳定。
     * 中间红色的波峰（**Activation**）是**动态的**，随着前向传播急剧增长。
 * **图 19 (Bar chart):** 对比。
@@ -708,7 +706,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * 但是**绿色柱子（激活值显存）** 并没有显著减少，甚至在 1T 参数的模型中，激活值占用的显存远超参数本身。
     * **结论：** 只切分参数是不够的，如果不管激活值，显存很快就会爆掉。
 
-#### 2. 分析瓶颈：张量并行（TP）做得还不够彻底
+### 2）分析瓶颈：张量并行（TP）做得还不够彻底
 
 ![Figure_20](../images/CS336/CS336_Lecture_7_Figure_20.png)
 ![Figure_21](../images/CS336/CS336_Lecture_7_Figure_21.png)
@@ -722,11 +720,11 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * **10 (The Stubborn Constant)：** 这部分**没有被除以 $t$**！这意味着无论你加多少个 GPU，这部分显存占用**雷打不动**。
     * **来源：** 这“顽固的 10”来自 **LayerNorm** 和 **Dropout** 以及相关输入。在标准的 TP 中，这些操作需要在每个 GPU 上存一份完整的副本（Replicated），导致无法节省显存。
 
-#### 3. 解决方案：序列并行（Sequence Parallelism）
+### 3）解决方案：序列并行（Sequence Parallelism）
 
 ![Figure_22](../images/CS336/CS336_Lecture_7_Figure_22.png)
 
-为了消灭那个顽固的常数“10”，我们引入了**序列并行（Sequence Parallelism, SP）**。
+为了能将激活值线性降低，我们引入了**序列并行（Sequence Parallelism, SP）**。
 
 * **核心思想：**
     * 既然 LayerNorm 和 Dropout 是逐元素（Point-wise）操作，它们在序列维度（Sequence Dimension）上是独立的。
@@ -736,7 +734,7 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
     * **SP 区域（Sequence Parallel）：** 在进入 LayerNorm/Dropout 之前，不做 All-Gather（收集全量数据），而是保持切分状态，只计算自己那一部分序列的 LayerNorm/Dropout。
 * **通信变化：** 把通信操作（$g$ 和 $\bar{g}$）的位置微调，将 All-Reduce 拆解为 Reduce-Scatter 和 All-Gather，巧妙地穿插在计算中。
 
-#### 4. 最终效果：真正的线性扩展
+### 4）最终效果：真正的线性扩展
 
 ![Figure_23](../images/CS336/CS336_Lecture_7_Figure_23.png)
 
@@ -750,3 +748,62 @@ $$\theta_{t+1} = \theta_t - \eta \sum_{i=1}^B \nabla f(x_i)$$
 
 这套技术（通常在 NVIDIA 的 **Megatron-LM** 项目中实现）解决了大模型训练中显存优化的最后一块短板：
 通过**序列并行（Sequence Parallelism）**，将 LayerNorm 和 Dropout 等操作沿序列维度切分，消除了张量并行中遗留的显存冗余，使得超长序列（Long Sequence）的大模型训练成为可能。
+
+# 总结
+
+![Figure_24](../images/CS336/CS336_Lecture_7_Figure_24.png)
+
+最后总结一下训练大模型时四种主流并行策略的优缺点，训练的过程就是在显存（Memory）、带宽（Bandwidth）和计算效率之间做权衡。
+## 1\. DDP / ZeRO1 (分布式数据并行)
+
+这是最基础、最常用的并行方式。
+
+  * **原理：** 每个 GPU 都复制一份完整的模型参数，只把数据切分。
+  * **Sync overhead (通信开销)：** **Per-batch**。只有在每个 Batch 结束算完梯度后，大家才通一次信（All-Reduce 梯度），频率较低。
+  * **Memory (显存)：** **No scaling (无扩展)**。**这是它最大的缺点**。因为每个 GPU 都要存完整的模型，所以增加 GPU 数量**并不能**让你训练更大的模型，只能让你训练得更快。
+  * **Bandwidth (带宽)：** 中等。取决于参数量。
+  * **Easy to use? (易用性)：** **Very**。PyTorch 原生支持，几乎不需要改代码。
+
+## 2\. FSDP / ZeRO3 (全分片数据并行)
+
+这是为了解决 DDP 显存问题而进化的版本。
+
+  * **原理：** 把模型参数切碎，分摊到所有 GPU 上。计算时谁需要参数，谁就临时去借（Gather），算完立刻扔掉。
+  * **Sync overhead：** **3x Per-FSDP block**。**这是它的代价**。每个模块计算前要通信借参数，计算后要通信同步梯度。通信频率比 DDP 高得多，比较“啰嗦”。
+  * **Memory：** **Linear (线性优化)**。增加 GPU 数量，单卡的显存占用线性下降。**这是它最大的优点**。
+  * **Easy to use?：** **Very**。PyTorch 现已原生支持 FSDP。
+
+## 3\. Pipeline (流水线并行)
+
+我们之前详细分析过的那种“接力赛”模式。
+
+  * **原理：** 把模型的层切开，GPU 0 负责 Layer 1-10，GPU 1 负责 Layer 11-20...
+  * **Sync overhead：** **Per-pipeline**。只在流水线阶段之间通信。
+  * **Bandwidth：** **Activations**。只传激活值，**带宽要求极低**。非常适合跨机（Inter-node）这种网速较慢的连接。
+  * **Batch size：** **Linear**。**致命弱点**。为了填满流水线气泡，你必须使用很大的 Batch Size 来制造足够的 Micro-batches。如果你的任务 Batch Size 很小，效率会极低。
+  * **Easy to use?：** **NO**。实现复杂，需要手动切模型，处理气泡逻辑。
+
+## 4\. Tensor + Seq (张量并行 + 序列并行)
+
+通常用于单机内部（Intra-node）的极致性能优化（如 Megatron-LM）。
+
+  * **原理：** 把矩阵乘法切开，多人合作算一个算子。
+  * **Sync overhead：** **2x transformer block**。**通信频率极高**。每一层 Attention 和 MLP 内部都要通信。
+  * **Bandwidth：** \**8* activations...\*\*。**带宽吞噬者**。它传输的是巨大的激活值张量，且每一层都要传。**必须**依赖 NVLink 这种超高速连接，不能走普通网线。
+  * **Batch size：** **No impact (无影响)**。**这是它的杀手锏**。它不需要大 Batch Size 也能跑满 GPU，非常适合低延迟推理或小 Batch 训练。
+  * **Easy to use?：** **No**。需要重写模型代码（修改 Linear 层），对硬件拓扑有强依赖。
+
+### 如何选择？
+
+**"Have to balance limited resource"（必须在有限的资源中做平衡）**。
+
+  * **如果模型放得下：** 首选 **DDP/ZeRO1**（最简单，最快）。
+  * **如果模型放不下，但网速快：** 用 **FSDP**（省显存，易用）。
+  * **如果跨机器（网速慢）：** 用 **Pipeline**（省带宽）。
+  * **如果单机内部要做极致大模型：** 用 **Tensor Parallel**（虽然难写且吃带宽，但它是唯一不依赖 Batch Size 且无气泡的方案）。
+
+在实际训练超大模型（如 GPT-4, Llama 3 70B+）时，通常是**混合使用**：
+
+  * 单机内部用 **Tensor Parallel** (利用 NVLink)。
+  * 跨机之间用 **Pipeline Parallel** (利用以太网/InfiniBand)。
+  * 最后再套一层 **Data Parallel** (DDP/FSDP) 来增加数据吞吐量。

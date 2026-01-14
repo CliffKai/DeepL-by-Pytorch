@@ -1,0 +1,7 @@
+1. [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://proceedings.neurips.cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html)
+2. [MemoryBank: Enhancing Large Language Models with Long-Term Memory](https://doi.org/10.1609/aaai.v38i17.29946)
+3. [MemGPT: Towards LLMs as Operating Systems](https://par.nsf.gov/servlets/purl/10524107)
+4. [A-Mem: Agentic Memory for LLM Agents](https://arxiv.org/abs/2502.12110)
+5. [Memory OS of AI Agent](https://arxiv.org/abs/2506.06326)
+6. [Large Multimodal Agents: A Survey](https://arxiv.org/abs/2402.15116)
+7. [Temporal Multimodal Memory Banks for Agentic Reasoning](https://openaccess.thecvf.com/content/ICCV2025W/MMRAgI/html/Yadla_Temporal_Multimodal_Memory_Banks_for_Agentic_Reasoning_ICCVW_2025_paper.html)

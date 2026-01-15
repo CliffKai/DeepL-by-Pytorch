@@ -3,3 +3,8 @@
 3. [Scaling and evaluating sparse autoencoders](https://arxiv.org/abs/2406.04093)
 4. [Improving Dictionary Learning with Gated Sparse Autoencoders](https://arxiv.org/abs/2404.16014)
 5. [Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet](https://transformer-circuits.pub/2024/scaling-monosemanticity/)
+6. [Sparse Autoencoders Learn Monosemantic Features in Vision-Language Models](https://arxiv.org/abs/2504.02821)
+7. [Evidential Sparsification of Multimodal Latent Spaces in Conditional Variational Autoencoders](https://proceedings.neurips.cc/paper/2020/hash/73f95ee473881dea4afd89c06165fa66-Abstract.html)
+8. [Probing the Representational Power of Sparse Autoencoders in Vision Models](https://openaccess.thecvf.com/content/ICCV2025W/Findings/html/Olson_Probing_the_Representational_Power_of_Sparse_Autoencoders_in_Vision_Models_ICCVW_2025_paper.html)
+9. [SAE-V: Interpreting Multimodal Models for Enhanced Alignment](https://arxiv.org/abs/2502.17514)
+10. [Interpreting CLIP with Hierarchical Sparse Autoencoders](https://arxiv.org/abs/2502.20578)

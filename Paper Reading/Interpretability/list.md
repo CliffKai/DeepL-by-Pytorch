@@ -8,3 +8,5 @@
 8. [Probing the Representational Power of Sparse Autoencoders in Vision Models](https://openaccess.thecvf.com/content/ICCV2025W/Findings/html/Olson_Probing_the_Representational_Power_of_Sparse_Autoencoders_in_Vision_Models_ICCVW_2025_paper.html)
 9. [SAE-V: Interpreting Multimodal Models for Enhanced Alignment](https://arxiv.org/abs/2502.17514)
 10. [Interpreting CLIP with Hierarchical Sparse Autoencoders](https://arxiv.org/abs/2502.20578)
+
+这个专题的论文后续不在此仓库更新了。

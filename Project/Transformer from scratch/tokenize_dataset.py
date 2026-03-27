@@ -5,8 +5,8 @@ from src.bpe.tokenizer import Tokenizer
 
 # --- 配置 ---
 TOKENIZER_DIR = "./bpe_tokenizer"
-DATA_DIR = "/root/data/cs336"
-OUTPUT_DIR = "/root/data/cs336" # 直接保存在数据目录下
+DATA_DIR = "./data"
+OUTPUT_DIR = "./data" # 直接保存在数据目录下
 
 # 初始化分词器
 tokenizer = Tokenizer.from_files(

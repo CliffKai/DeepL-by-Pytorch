@@ -5,7 +5,7 @@ from src.bpe.train_bpe import run_train_bpe
 
 # --- 配置 ---
 # 输入的文本文件
-INPUT_TXT_PATH = "/root/data/cs336/TinyStoriesV2-GPT4-train.txt" 
+INPUT_TXT_PATH = "./data/TinyStoriesV2-GPT4-train.txt" 
 # 输出目录
 OUTPUT_DIR = "./bpe_tokenizer"
 # 词汇表大小 (PDF为TinyStories推荐10000)

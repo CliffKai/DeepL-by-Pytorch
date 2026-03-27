@@ -1,4 +1,4 @@
-CHECKPOINT_PATH="./checkpoints/lr_sweep_3e-4/ckpt.pt"
+CHECKPOINT_PATH="./checkpoints/sanity_check/ckpt_step90.pt"
 
 uv run python generate.py \
     --checkpoint_path=$CHECKPOINT_PATH \

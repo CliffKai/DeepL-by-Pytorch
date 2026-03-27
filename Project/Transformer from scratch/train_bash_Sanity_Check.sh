@@ -15,6 +15,7 @@ uv run python train.py \
     --log_interval=1 \
     --learning_rate=3e-4 \
     --warmup_steps=0 \
+    --save_interval=5000 \
     --out_dir=checkpoints/sanity_check \
     --device=cuda \
     --wandb_log \

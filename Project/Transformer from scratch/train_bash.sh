@@ -10,8 +10,8 @@ echo "Starting training with LR=${LR} and Min_LR=${MIN_LR}"
 echo "============================================================"
 
 uv run python train.py \
-    --train_data_path=/root/data/cs336/tinystories_train.npy \
-    --val_data_path=/root/data/cs336/tinystories_val.npy \
+    --train_data_path=./data/tinystories_train.npy \
+    --val_data_path=./data/tinystories_val.npy \
     --vocab_size=10000 \
     --context_length=256 \
     --d_model=512 \

@@ -1,8 +1,8 @@
 rm -rf ./checkpoints/sanity_check
 
 uv run python train.py \
-    --train_data_path=/root/data/cs336/tinystories_train.npy \
-    --val_data_path=/root/data/cs336/tinystories_val.npy \
+    --train_data_path=./data/tinystories_train.npy \
+    --val_data_path=./data/tinystories_val.npy \
     --vocab_size=10000 \
     --context_length=256 \
     --d_model=512 \
@@ -15,8 +15,7 @@ uv run python train.py \
     --log_interval=1 \
     --learning_rate=3e-4 \
     --warmup_steps=0 \
-
-    --out_dir=./checkpoints/sanity_check \
+    --out_dir=checkpoints/sanity_check \
     --device=cuda \
     --wandb_log \
     --wandb_run_name="sanity-check-clean-start"

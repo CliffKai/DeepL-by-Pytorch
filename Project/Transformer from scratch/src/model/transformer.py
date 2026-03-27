@@ -33,7 +33,7 @@ class TransformerBlock(nn.Module):
         token_positions: Int[Tensor, "batch seq_len"]
     ) -> Float[Tensor, "batch seq_len d_model"]:
         residual = x
-        x_norm = self.ln(x)
+        x_norm = self.ln1(x)
         attn_out = self.attn(x_norm, token_positions)
         x = residual + attn_out
 

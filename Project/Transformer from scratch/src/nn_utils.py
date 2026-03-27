@@ -15,7 +15,7 @@ def silu(x: Float[Tensor, "..."]) -> Float[Tensor, "..."]:
 def cross_entropy(inputs: Tensor, targets: Tensor) -> Tensor:
     logsumexp = torch.logsumexp(inputs, dim=1, keepdim=True)
     log_probs = inputs - logsumexp
-    gathered = log_probs.gather(1, targets.view(-1, 1)).squeeze(1)
+    gathered = log_probs.gather(dim=1, index=targets.view(-1, 1)).squeeze(1)
     return -gathered.mean()
 
 def gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
@@ -271,13 +271,7 @@ def test_cuda_half_optional():
 
 if __name__ == "__main__":
     test_softmax()
-    # 先运行 silu 会“有意失败”提醒你修正；若你已修正为 x*sigmoid(x)，此测试会通过
-    try:
-        test_silu()
-    except AssertionError as e:
-        print(str(e))
-        print("👉 提示：把 silu 改为 `return x * torch.sigmoid(x)` 后，重新运行本测试。")
-
+    test_silu()
     test_cross_entropy()
     test_gradient_clipping()
     test_cuda_half_optional()

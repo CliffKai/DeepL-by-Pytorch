@@ -38,7 +38,7 @@ class TransformerBlock(nn.Module):
         x = residual + attn_out
 
         residual = x
-        x_norm = self.ln(x)
+        x_norm = self.ln2(x)
         ffn_out = self.ffn(x_norm)
         x = residual + ffn_out
 

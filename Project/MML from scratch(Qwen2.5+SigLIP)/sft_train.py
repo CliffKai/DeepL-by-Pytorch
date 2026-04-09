@@ -76,12 +76,12 @@ class SFTDataset(Dataset):
 
             # 加载图片
             image = Image.open(os.path.join(self.images_path, image_name)).convert('RGB')
-            pixel_values = self.processor(text=None, images=image)['pixel_values']
+            pixel_values = self.processor(text=None, images=image, return_tensors='pt')['pixel_values']
 
         except:
             # 兜底
             default_image = Image.new('RGB', (224, 224), color='white')
-            pixel_values = self.processor(text=None, images=default_image)['pixel_values']
+            pixel_values = self.processor(text=None, images=default_image, return_tensors='pt')['pixel_values']
             q_text = self.tokenizer.apply_chat_template(
                 [{"role": "system", "content": "You are a helpful assistant."},
                  {"role": "user", "content": "图片内容是什么\n<image>"}],
@@ -140,7 +140,10 @@ if __name__ == '__main__':
 
     # 加载预训练好的模型
     config = VLMConfig.from_pretrained(args.pretrain_model_path)
-    model = AutoModelForCausalLM.from_pretrained(args.pretrain_model_path)
+    model = VLM(config)
+    from safetensors.torch import load_file
+    state_dict = load_file(os.path.join(args.pretrain_model_path, 'model.safetensors'))
+    model.load_state_dict(state_dict, strict=False)
 
     # SFT冻结策略: 冻结vision+linear, 解冻LLM
     # [BUG FIX] 原始代码为 if 'linear' in name or 'vision_model':
@@ -181,6 +184,6 @@ if __name__ == '__main__':
         data_collator=MyDataCollator(tokenizer)
     )
 
-    trainer.train(resume_from_checkpoint=True)
+    trainer.train(resume_from_checkpoint=False)
     trainer.save_model(args.output_dir)
     trainer.save_state()

@@ -18,11 +18,14 @@ args = parser.parse_args()
 AutoConfig.register("vlm_model", VLMConfig)
 AutoModelForCausalLM.register(VLMConfig, VLM)
 
-model = AutoModelForCausalLM.from_pretrained(args.model_path)
+config = VLMConfig.from_pretrained(args.model_path)
+model = VLM(config)
+from safetensors.torch import load_file
+import os
+state_dict = load_file(os.path.join(args.model_path, 'model.safetensors'))
+model.load_state_dict(state_dict, strict=False)
 model.to(args.device)
 model.eval()
-
-config = VLMConfig.from_pretrained(args.model_path)
 tokenizer = AutoTokenizer.from_pretrained(config.llm_model_path)
 processor = AutoProcessor.from_pretrained(config.vision_model_path)
 
@@ -40,7 +43,7 @@ input_ids = input_ids.to(args.device)
 
 # 准备多张图片
 images = [Image.open(p).convert("RGB") for p in args.image_paths]
-pixel_values = processor(text=None, images=images).pixel_values  # (num_images, 3, 224, 224)
+pixel_values = processor(text=None, images=images, return_tensors='pt').pixel_values  # (num_images, 3, 224, 224)
 pixel_values = pixel_values.to(args.device)
 
 # 自回归生成 (同 test.py)

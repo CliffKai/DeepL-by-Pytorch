@@ -27,8 +27,6 @@ class VLMConfig(PretrainedConfig):
         image_pad_num=49,
         **kwargs
     ):
-        assert llm_model_path is not None, "必须指定 llm_model_path"
-        assert vision_model_path is not None, "必须指定 vision_model_path"
         self.llm_model_path = llm_model_path
         self.vision_model_path = vision_model_path
         self.freeze_vision_model = freeze_vision_model
@@ -49,7 +47,7 @@ class VLM(PreTrainedModel):
         self.processor = AutoProcessor.from_pretrained(config.vision_model_path)
 
         # 语言模型 (Qwen2.5-0.5B)
-        self.llm_model = AutoModelForCausalLM.from_pretrained(config.llm_model_path)
+        self.llm_model = AutoModelForCausalLM.from_pretrained(config.llm_model_path, dtype=torch.float32)
         self.tokenizer = AutoTokenizer.from_pretrained(config.llm_model_path)
 
         # 投影层: vision_hidden_size*4 → llm_hidden_size → llm_hidden_size
@@ -156,12 +154,12 @@ class MyDataset(Dataset):
 
             # 加载图片并预处理
             image = Image.open(os.path.join(self.images_path, image_name)).convert("RGB")
-            pixel_values = self.processor(text=None, images=image)['pixel_values']
+            pixel_values = self.processor(text=None, images=image, return_tensors='pt')['pixel_values']
 
         except:
             # 图片加载失败时的兜底: 白图+空回答
             default_image = Image.new('RGB', (224, 224), color='white')
-            pixel_values = self.processor(text=None, images=default_image)['pixel_values']
+            pixel_values = self.processor(text=None, images=default_image, return_tensors='pt')['pixel_values']
             q_text = self.tokenizer.apply_chat_template(
                 [{"role": "system", "content": "You are a helpful assistant."},
                  {"role": "user", "content": "图片内容是什么\n<image>"}],

@@ -76,11 +76,11 @@ class SftMultiImageDataset(Dataset):
                 loaded_images.append(image)
 
             # processor 一次处理多张图 → (num_images, 3, 224, 224)
-            pixel_values = self.processor(text=None, images=loaded_images)['pixel_values']
+            pixel_values = self.processor(text=None, images=loaded_images, return_tensors='pt')['pixel_values']
 
         except:
             default_image = Image.new('RGB', (224, 224), color='white')
-            pixel_values = self.processor(text=None, images=default_image)['pixel_values']
+            pixel_values = self.processor(text=None, images=default_image, return_tensors='pt')['pixel_values']
             q_text = self.tokenizer.apply_chat_template(
                 [{"role": "system", "content": "You are a helpful assistant."},
                  {"role": "user", "content": "图片内容是什么\n<image>"}],
@@ -139,7 +139,10 @@ if __name__ == '__main__':
 
     # 加载单图SFT模型
     config = VLMConfig.from_pretrained(args.sft_model_path)
-    model = AutoModelForCausalLM.from_pretrained(args.sft_model_path)
+    model = VLM(config)
+    from safetensors.torch import load_file
+    state_dict = load_file(os.path.join(args.sft_model_path, 'model.safetensors'))
+    model.load_state_dict(state_dict, strict=False)
 
     # 冻结策略: 同单图SFT, 只训练LLM
     # [BUG FIX] 原始代码为 if 'linear' in name or 'vision_model':

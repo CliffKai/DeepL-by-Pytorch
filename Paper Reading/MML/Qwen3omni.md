@@ -114,7 +114,7 @@ Qwen3-Omni 架构设计的核心之一
 
 ## 2.2 模型架构
 
-![Figure_1](../../images/Qwen3omni_Figure_1.png)
+![Figure_1](../../images/MML/Qwen3omni_Figure_1.png)
 
 ### 1 Thinker
 

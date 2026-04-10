@@ -502,7 +502,7 @@ $$
 这个问题的完整思考是这样的：
 
 以 ALBEF 为例：
-![ALBEF_Figure_1](../images/ALBEF_Figure_1.png)
+![ALBEF_Figure_1](../../images/MML/ALBEF_Figure_1.png)
 
 > 三个encoder，一个image encoder、一个text encoder和一个multimodal encoder，然后text encoder后做Cross-Attention用text encoder中的Q和image encoder中的K和V，那这样不是就丢失text encoder中的K和V的信息了吗？
 

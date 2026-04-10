@@ -4,7 +4,7 @@
 
 # 模型
 
-![Transformer_Figure_1](../../images/Transformer_Figure_1.png)
+![Transformer_Figure_1](../../images/NLP/Transformer_Figure_1.png)
 
 Transformer 由两个主要部分组成：
 - Encoder 编码器（图左侧，重复 N 次）

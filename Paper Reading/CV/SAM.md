@@ -7,7 +7,7 @@
 2. 模型：能够支持灵活提示并实时输出掩码的模型
 3. 数据：因为数据缺乏，所以提出了**数据引擎**
 
-![SAM_Figure_1](../../images/SAM_Figure_1.png)
+![SAM_Figure_1](../../images/CV/SAM_Figure_1.png)
 
 # 任务：带提示词类型的分割任务
 

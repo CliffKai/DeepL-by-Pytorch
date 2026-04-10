@@ -40,7 +40,7 @@ Architectural innovations:
 
 # 2 Approach
 
-![Flamingo_Figure_3](../../images/Flamingo_Figure_3.png)
+![Flamingo_Figure_3](../../images/MML/Flamingo_Figure_3.png)
 
 
 1. **Perceiver Resampler（视觉侧 → 固定长度 token）**
@@ -56,7 +56,7 @@ Architectural innovations:
      * 论文中测试了不同插入频率：每层插入最好，但代价太大；最终 Flamingo-9B 每 4 层插一次，Flamingo-80B 每 7 层插一次。
    * **作用**：通过门控跨注意力把视觉 token 注入语言流，同时保证初始化时输出与原 LM 一致，避免破坏预训练知识。
 
-![Flamingo_Figure_4](../../images/Flamingo_Figure_4.png)
+![Flamingo_Figure_4](../../images/MML/Flamingo_Figure_4.png)
 
 ## 2.1 Visual processing and the Perceiver Resampler
 

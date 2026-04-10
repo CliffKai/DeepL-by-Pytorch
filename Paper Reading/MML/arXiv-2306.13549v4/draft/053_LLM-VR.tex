@@ -1,0 +1,71 @@
+\subsection{LLM-Aided Visual Reasoning}
+\label{sec:vr}
+
+\subsubsection{Introduction}
+\label{sec:vr_intro}
+
+Inspired by the success of tool-augmented LLMs~\cite{parisi2022talm, gao2022pal, schick2023toolformer, nakano2021webgpt}, some researches have explored the possibilities of invoking external tools~\cite{gpt4tools, visprog, mm-react, chameleon} or vision foundation models~\cite{mm-react, CAT, chatcaptioner, sm, visual-chatgpt, idealgpt,udandarao2022sus} for visual reasoning tasks. 
+Taking LLMs as helpers with different roles, these works build task-specific~\cite{PointCLIP-V2, CaFo, CAT} or general-purpose~\cite{HuggingGPT, mm-react, visual-chatgpt, chameleon, visprog} visual reasoning systems.
+
+
+Compared with conventional visual reasoning models~\cite{anderson2018bottom, yu2019deep, gao2019dynamic}, these works manifest several good traits: (1) Strong generalization abilities. Equipped with rich open-world knowledge learned from large-scale pretraining, these systems can easily generalize to unseen objects or concepts with remarkable zero/few-shot performance~\cite{chameleon, visprog, idealgpt, PointCLIP-V2, CaFo, SMs}. 
+(2) Emergent abilities. Aided by strong reasoning abilities of LLMs, these systems can perform complex tasks. For example, given an image, MM-REACT~\cite{mm-react} can interpret the meaning beneath the surface, such as explaining why a meme is funny.
+(3) Better interactivity and control. Traditional models typically allow a limited set of control mechanisms and often entail expensive curated datasets~\cite{gan2017stylenet, mathews2016senticap}. 
+In contrast, LLM-based systems have the ability to make fine control in a user-friendly interface (\eg click and natural language queries)~\cite{CAT}.
+
+For this part, we start with introducing different training paradigms employed in the construction of LLM-Aided Visual Reasoning systems (\S \ref{sec:vr_train}). 
+Then, we delve into the primary roles that LLMs play within these systems (\S \ref{sec:vr_func}). 
+
+
+
+\subsubsection{Training Paradigms}
+\label{sec:vr_train}
+According to training paradigms, LLM-Aided Visual Reasoning systems can be divided into two types, \ie training-free and finetuning.
+
+
+\noindent \textbf{Training-free.}
+With abundant prior knowledge stored in pre-trained LLMs, an intuitive and simple way is to freeze pre-trained models and directly prompt LLMs to fulfill various needs. 
+According to the setting, the reasoning systems can be further categorized into few-shot models~\cite{chameleon, HuggingGPT, mm-react, visprog} and zero-shot models~\cite{PointCLIP-V2,CAT}. 
+The few-shot models entail a few hand-crafted in-context samples (see \S \ref{sec:micl}) to guide LLMs to generate a program or a sequence of execution steps. 
+These programs or execution steps serve as instructions for corresponding foundation models or external tools/modules. 
+The zero-shot models take a step further by directly utilizing LLMs' linguistics/semantics knowledge or reasoning abilities. 
+For example, PointCLIP V2~\cite{PointCLIP-V2} prompts GPT-3 to generate descriptions with 3D-related semantics for better alignment with corresponding images. 
+In CAT~\cite{CAT}, LLMs are instructed to refine the captions according to user queries.
+
+
+\noindent \textbf{Finetuning.}
+Some works adopt further finetuning to improve the planning abilities with respect to tool usage~\cite{gpt4tools} or to improve localization capabilities~\cite{lai2023lisa,wu2023textit} of the system. For example, GPT4Tools~\cite{gpt4tools} introduces the instruction-tuning approach (see \S \ref{sec:train_inst_tune}). 
+Accordingly, a new tool-related instruction dataset is collected and used to finetune the model.
+
+
+\subsubsection{Functions}
+\label{sec:vr_func}
+In order to further inspect what roles LLMs exactly play in LLM-Aided Visual Reasoning systems, existing related works are divided into three types:
+\begin{itemize}
+    \item LLM as a Controller
+    \item LLM as a Decision Maker
+    \item LLM as a Semantics Refiner
+\end{itemize}
+
+The first two roles are related to CoT (see \S \ref{sec:mcot}). It is frequently used because complex tasks need to be broken down into intermediate simpler steps. 
+When LLMs act as controllers, the systems often finish the task in a single round, while multi-round is more common in the case of the decision maker.
+We delineate how LLMs serve these roles in the following parts.
+
+\noindent \textbf{LLM as a Controller.}
+In this case, LLMs act as a central controller that (1) breaks down a complex task into simpler sub-tasks/steps and (2) assigns these tasks to appropriate tools/modules. The first step is often finished by leveraging the CoT ability of LLMs. Specifically, LLMs are prompted explicitly to output task planning~\cite{HuggingGPT} or, more directly, the modules to call~\cite{chameleon, gpt4tools, visprog}. For example, VisProg~\cite{visprog} prompts GPT-3 to output a visual program, where each program line invokes a module to perform a sub-task.
+In addition, LLMs are required to output argument names for the module input. 
+To handle these complex requirements, some hand-crafted in-context examples are used as references~\cite{chameleon, HuggingGPT, visprog}.
+This is closely related to the optimization of reasoning chains (see \S \ref{sec:mcot}), or more specifically, the least-to-most prompting~\cite{zhou2022least} technique.
+In this way, complex problems are broken down into sub-problems that are solved sequentially.
+
+\noindent \textbf{LLM as a Decision Maker.}
+In this case, complex tasks are solved in a multi-round manner, often in an iterative way~\cite{idealgpt}. 
+Decision-makers often fulfill the following responsibilities: 
+(1) Summarize the current context and the history information, and decide if the information available at the current step is sufficient to answer the question or complete the task; (2) Organize and summarize the answer to present it in a user-friendly way.
+
+\noindent \textbf{LLM as a Semantics Refiner.}
+When LLM is used as a Semantics Refiner, researchers mainly utilize its rich linguistics and semantics knowledge. 
+Specifically, LLMs are often instructed to integrate information into consistent and fluent natural language sentences~\cite{SMs} or generate texts according to different specific needs~\cite{CAT, PointCLIP-V2, CaFo}.
+
+
+

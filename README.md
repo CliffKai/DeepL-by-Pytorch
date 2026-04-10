@@ -35,6 +35,9 @@
 - **Transformer from scratch** — 从零实现 Transformer（具体实现讲解可以看 cs336: [assignment1-basics (In Progress)](https://github.com/CliffKai/assignment1-basics) 部分）
   - 包含：BPE 分词器训练、数据集处理、模型训练、文本生成
   - 模型组件：Attention、Embedding、FFN、RMSNorm、Linear
+- **MML from scratch (Qwen2.5+SigLIP)** — VLM 从零复现，使用 SigLIP 作为视觉编码器，Qwen2.5-0.5B 作为语言模型
+  - 包含：预训练、单图/多图 SFT 训练、推理、Gradio Demo
+  - 三阶段训练：投影层预训练 → 单图 SFT → 多图 SFT
 - **Build the GPT Tokenizer** (In Progress)
 - **Qwen2.5vl 部署** — 推理 demo 及源码解读
 - **Qwen3omni 源码** (In Progress) — 源码解读
@@ -77,14 +80,28 @@
   - RT-2
   - BitVLA
 - **Memory Agent**
+  - RAG
+  - MemoryBank
+  - MemGPT
+  - A-Mem
+  - Memory OS of AI Agent
 - **Interpretability（可解释性）**
+  - Towards Monosemanticity
+  - Sparse Autoencoders Find Highly Interpretable Features in Language Models
+  - Scaling and evaluating sparse autoencoders
+  - Improving Dictionary Learning with Gated Sparse Autoencoders
+  - Sparse Autoencoders Learn Monosemantic Features in Vision-Language Models
 - **LLM-as-Judge**
+  - Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena
+  - JudgeLM
 
 ## Paper Code
 
 **（在更）**
 
-一些论文相关的代码（不一定是论文实现）。
+一些论文相关的代码（不一定是论文实现）：
+
+- Attention 机制实现
 
 ## CS336 Note
 
@@ -111,7 +128,7 @@ Stanford CS336 大语言模型课程笔记：
 - 如何从论文中发掘研究思路
 - 如何读论文 & 如何获取研究灵感
 - 机器学习方式
-- 大语言模型拟人化研究
+- 大语言模型拟人化研究（研究1 & 研究2）
 
 ## Interview
 

@@ -1,0 +1,64 @@
+\subsection{Multimodal In-Context Learning}
+\label{sec:micl}
+
+ICL is one of the important emergent abilities of LLMs. 
+There are two good traits of ICL: 
+(1) Different from traditional supervised learning paradigms that learn implicit patterns from abundant data, the crux of ICL is to learn from analogy~\cite{dong2022survey}. Specifically, in the ICL setting, LLMs learn from a few examples along with an optional instruction and extrapolate to new questions, thereby solving complex and unseen tasks in a few-shot manner~\cite{chameleon, mm-react, visprog}. 
+(2) ICL is usually implemented in a training-free manner~\cite{dong2022survey} and thus can be flexibly integrated into different frameworks at the inference stage.
+A closely related technique to ICL is instruction-tuning (see \S \ref{sec:train_inst_tune}), which is shown empirically to enhance the ICL ability~\cite{wei2021finetuned}. 
+
+
+\begin{table}[!t]
+\begin{tcolorbox}%[colback=white,colframe=black]
+
+
+\textcolor[rgb]{0,0.7,0}{<BOS>} Below are some examples and an instruction that describes a task. Write a response that appropriately completes the request \par\medskip
+
+\#\#\# Instruction: \textcolor[rgb]{0,0,0.8}{\{instruction\}}
+
+\#\#\# Image: \textcolor[rgb]{0,0,0.8}{<image>}\ 
+
+\#\#\# Response: \textcolor[rgb]{0.8,0,0}{\{response\}} \par\medskip
+
+
+\#\#\# Image: \textcolor[rgb]{0,0,0.8}{<image>}\ 
+
+\#\#\# Response: \textcolor[rgb]{0.8,0,0}{\{response\}}
+
+
+\tcblower % divider
+
+\#\#\# Image: \textcolor[rgb]{0,0,0.8}{<image>}\ 
+
+\#\#\# Response: \textcolor[rgb]{0.8,0,0}{<EOS>}
+
+\end{tcolorbox}
+\caption{A simplified example of the template to structure an M-ICL query, adapted from~\cite{multimodal-gpt}. For illustration, we list two in-context examples and a query divided by a dashed line. 
+\textcolor[rgb]{0,0,0.8}{\{instruction\}} and \textcolor[rgb]{0.8,0,0}{\{response\}} are texts from the data sample.  \textcolor[rgb]{0,0,0.8}{<image>} is a placeholder to represent the multimodal input (an image in this case). \textcolor[rgb]{0,0.7,0}{<BOS>} and \textcolor[rgb]{0.8,0,0}{<EOS>} are tokens denoting the start and the end of the input to the LLM, respectively.}
+\label{template_ICL}
+\end{table}
+
+In the context of MLLM, ICL has been extended to more modalities, leading to Multimodal ICL (M-ICL).
+Building upon the setting in (\S \ref{sec:train_inst_tune}), at inference time, M-ICL can be implemented by adding a demonstration set, \ie a set of in-context samples, to the original sample. 
+In this case, the template can be extended as illustrated in~\cref{template_ICL}. 
+Note that we list two in-context examples for illustration, but the number and the ordering of examples can be flexibly adjusted. In fact, models are commonly sensitive to the arrangement of demonstrations~\cite{dong2022survey, lu2021fantastically}.
+
+\subsubsection{Improvement on ICL capabilities}
+Recently, a growing amount of work has focused on enhancing ICL performance under various scenarios. In this section, we trace the development of this field and summarize some relevant works.
+
+MIMIC-IT~\cite{li2023mimic} combines in-context learning with instruction tuning by building an instruction dataset formatted with multimodal context. The model instruction tuned on the introduced dataset shows improved few-shot performance in the caption task.
+Emu~\cite{sun2023generative} extends the idea of Flamingo~\cite{alayrac2022flamingo} by introducing extra modalities in model generation and corresponding training corpus. Aided by the introduced vision decoder, \ie Stable Diffusion, the model learns from extra vision supervision and supports more flexibility in output format and in-context reasoning. Specifically, apart from answering in pure text, the model can also give responses in the form of images. 
+Sheng~\etal~\cite{sheng2023towards} adopt a similar idea and try to extend output modalities into both text and image. Instead of adopting a specialized encoder for images, the work adopts a unified quantization scheme with a shared embedding layer.
+
+
+Some other works explore improving few-shot learning performance under specific settings. 
+Link-context learning~\cite{tai2023link} focuses on strengthening the causal link between image-label pairs and casts a contrast training scheme by formulating positive and negative image-description pairs.
+MMICL~\cite{zhao2023mmicl} aims to augment the capabilities in reasoning with multiple related images. To strengthen the link between image and text, the work proposes a context scheme to transform interleaved image-text data into a uniform format.
+Jeong~\cite{jeong2023hijacking} finds that when inserting a small fraction of incoherent images/text as noise, MLLMs can be misled to give responses inconsistent with the context. Based on the observation, the work accordingly proposes a pre-filtering method to remove irrelevant context and facilitate more coherent responses.
+
+
+\subsubsection{Applications}
+In terms of applications in multimodality, M-ICL is mainly used in two scenarios: 
+(1) solving various visual reasoning tasks~\cite{few-shot-vqa, alayrac2022flamingo, mm-react, frozen, otter} and (2) teaching LLMs to use external tools~\cite{chameleon, HuggingGPT, visprog}. The former usually involves learning from a few task-specific examples and generalizing to a new but similar question. From the information provided in instructions and demonstrations, LLMs get a sense of what the task is doing and what the output template is and finally generate expected answers. In contrast, examples of tool usage are more fine-grained. They typically comprise a chain of steps that could be sequentially executed to fulfill the task. Thus, the second scenario is closely related to CoT (see \S \ref{sec:mcot}).
+
+

@@ -1,0 +1,45 @@
+\subsection{Multimodal Chain of Thought}
+\label{sec:mcot}
+
+As the pioneer work~\cite{wei2022chain} points out, CoT is ``a series of intermediate reasoning steps'', which has been proven to be effective in complex reasoning tasks~\cite{wei2022chain, kojima2022large, zhang2022automatic}.
+The main idea of CoT is to prompt LLMs to output not only the final answer but also the reasoning process that leads to the answer, resembling the cognitive process of humans.
+
+Inspired by the success in NLP, multiple works~\cite{vcot, multimodal-cot, vip, cot-prompt-tuning} have been proposed to extend the unimodal CoT to Multimodal CoT (M-CoT). 
+We first introduce different paradigms for acquiring the M-CoT ability (\S \ref{sec:mcot_learn}). 
+Then, we delineate more specific aspects of M-CoT, including the chain configuration (\S \ref{sec:mcot_config}) and the pattern (\S \ref{sec:mcot_patt}).
+
+
+
+\subsubsection{Learning Paradigms}
+\label{sec:mcot_learn}
+The learning paradigm is also an aspect worth investigating. 
+There are broadly three ways to acquire the M-CoT ability, \ie through finetuning and training-free few/zero-shot learning. 
+The sample size requirement for the three ways is in descending order. 
+
+Intuitively, the finetuning approach often involves curating specific datasets for M-CoT learning. 
+For example, Lu~\etal~\cite{scienceqa} construct a scientific question-answering dataset ScienceQA with lectures and explanations, which can serve as sources of learning CoT reasoning, and finetune the model on this proposed dataset. 
+Multimodal-CoT~\cite{multimodal-cot} also uses the ScienceQA benchmark but generates the output in a two-step fashion, \ie the rationale (chain of reasoning steps) and the final answer based on the rationale. 
+CoT-PT~\cite{cot-prompt-tuning} learns an implicit chain of reasoning through a combination of prompt tuning and step-specific visual bias.
+
+Compared with finetuning, few/zero-shot learning is more computationally efficient. The main difference between them is that the few-shot learning typically requires hand-crafting some in-context examples so that the model can learn to reason step by step more easily. 
+In contrast, the zero-shot learning does not require any specific example for CoT learning. In this case, models learn to use the embedded knowledge and the reasoning ability without explicit guidance by prompting designed instructions like ``Let's think frame by frame'' or ``What happened between these two keyframes''~\cite{vcot, vip}. 
+Similarly, some works~\cite{mm-react, visual-chatgpt} prompt models with descriptions of the task and tool usage to decompose complex tasks into sub-tasks.
+
+\subsubsection{Chain Configuration}
+\label{sec:mcot_config}
+Structure and length are two critical aspects of the reasoning chains.
+In terms of structure, current methods can be divided into single-chain and tree-shape methods.
+Reasoning with a single chain is a paradigm widely used in various methods~\cite{scienceqa, multimodal-cot}. Specifically, the step-by-step reasoning process forms a single question-rationale-answer chain. 
+Recently, some methods have explored using a more complicated scheme, \ie tree-shape chain, for reasoning. Specifically, DDCoT~\cite{zheng2023ddcot} breaks down a question into multiple sub-questions, each of which is solved by LLM itself or visual experts to generate rationales. Then the LLM aggregates and reasons with the rationales to form the final answer.
+With respect for chain length, it can be categorized into adaptive and pre-defined formations. 
+The former configuration requires LLMs to decide on their own when to halt the reasoning chains~\cite{chameleon, scienceqa, mm-react, multimodal-cot, visual-chatgpt, visprog}, while the latter setting stops the chains with a pre-defined length~\cite{cot-prompt-tuning, CAT, vip, vcot}.
+
+\vspace{-0.5em}
+\subsubsection{Generation Patterns}
+\label{sec:mcot_patt}
+How the chain is constructed is a question worth studying. 
+We summarize the current works into (1) an infilling-based pattern and (2) a predicting-based pattern. Specifically, the infilling-based pattern demands deducing steps between surrounding context (previous and following steps) to fill the logical gaps~\cite{vip, vcot}. 
+In contrast, the predicting-based pattern requires extending the reasoning chains given conditions such as instructions and previous reasoning history~\cite{chameleon, scienceqa, mm-react, multimodal-cot, visual-chatgpt, visprog}. 
+The two types of patterns share a requirement that the generated steps should be consistent and correct.
+
+

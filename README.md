@@ -69,6 +69,11 @@
   - DeepSeek-OCR
   - Qwen3omni
   - Social Debiasing for Fair MLLMs
+  - MiniCPM-V 4.5 Technical Report
+  - MLLM-Survey（多模态大模型综述）
+  - MME-Survey（多模态评测综述）
+  - Multimodal Evaluation Notes（多模态评测笔记）
+  - Multimodal Notes 1
   - 多模态论文复习
 - **NLP**
   - Transformer

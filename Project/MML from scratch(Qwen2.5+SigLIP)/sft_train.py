@@ -165,8 +165,8 @@ if __name__ == '__main__':
         output_dir=args.output_dir,
         do_train=True,
         per_device_train_batch_size=2,
-        learning_rate=1e-4,
-        num_train_epochs=5,
+        learning_rate=5e-5,
+        num_train_epochs=2,
         save_steps=500,
         save_total_limit=2,
         fp16=True,
@@ -174,7 +174,9 @@ if __name__ == '__main__':
         logging_steps=100,
         report_to='tensorboard',
         dataloader_pin_memory=True,
-        dataloader_num_workers=1
+        dataloader_num_workers=1,
+        warmup_ratio=0.03,
+        lr_scheduler_type="cosine",
     )
 
     trainer = Trainer(

@@ -3,7 +3,7 @@
 # ============ 多图推理 ============
 
 # ---------- 配置 ----------
-MODEL_PATH="save/sft_multi_image_v2/checkpoint-2000"
+MODEL_PATH="save/sft_multi_image_v2/checkpoint-7000"
 IMAGE_PATHS=(
     "/home/tdh/datasets/COCO_images/train2014/COCO_train2014_000000000009.jpg"
     "/home/tdh/datasets/COCO_images/train2014/COCO_train2014_000000000025.jpg"

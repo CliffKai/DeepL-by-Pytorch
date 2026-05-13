@@ -6,7 +6,7 @@
 # 文本来源: llava_instruct_230k.json (150K+80K 合并, 237K 多轮对话)
 
 # ---------- 路径配置 ----------
-PRETRAIN_MODEL_PATH="save/pretrain/checkpoint-500"
+PRETRAIN_MODEL_PATH="save/pretrain/checkpoint-9303"
 IMAGES_PATH="/home/tdh/datasets/COCO_images/train2014"
 DATA_PATH="/home/tdh/datasets/Chinese-LLaVA-Vision-Instructions/LLaVA-Instruct-150K/translated/llava_instruct_230k.json"
 OUTPUT_DIR="save/sft"

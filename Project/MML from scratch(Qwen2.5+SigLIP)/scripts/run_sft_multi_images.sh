@@ -5,7 +5,7 @@
 # 数据: minimind-v_dataset 的 parquet 格式多图对话数据
 
 # ---------- 路径配置 ----------
-SFT_MODEL_PATH="save/sft/checkpoint-1000"
+SFT_MODEL_PATH="save/sft/checkpoint-2500"
 IMAGES_PATH="/home/tdh/datasets/minimind-v_dataset"
 DATA_PATH="/home/tdh/datasets/minimind-v_dataset/sft_i2t.parquet"
 OUTPUT_DIR="save/sft_multi_image_v2"

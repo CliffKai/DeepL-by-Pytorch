@@ -3,7 +3,7 @@
 # ============ 单图推理 ============
 
 # ---------- 配置 ----------
-MODEL_PATH="save/sft/checkpoint-1500"
+MODEL_PATH="save/sft/checkpoint-2500"
 IMAGE_PATH="/home/tdh/datasets/COCO_images/train2014/COCO_train2014_000000000009.jpg"
 PROMPT="描述图片内容"
 DEVICE="cuda:0"

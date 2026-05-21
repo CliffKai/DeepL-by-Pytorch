@@ -428,3 +428,131 @@ MultiTrust 发现，大多数模型都具备基本的隐私概念。在判断图
 而 MiniGPT-4-Llama2 的结果表明，冻结的 Llama2 可以增强隐私保护能力。
 
 ![Table_5](../../images/MML/MultiTrust_Table_5.png)
+
+# MultiTrust 数据机构健全过程
+
+![Table_2](../../images/MML/MultiTrust_Table_2.png)
+
+符号含义是：❌ 表示直接使用已有数据集，➕ 表示基于已有数据集改造，✅ 表示从零构建。
+
+## Truthfulness: T.1–T.7
+
+| ID | 任务 | 评估目标 | 数据来源 | 怎么构建 | 论文哪里讲到 |
+|---|---|---|---|---|---|
+| **T.1** | **Basic World Understanding** | 测试模型最基础的视觉感知能力：物体是否存在、属性、场景、定位、OCR 等是否能正确识别。 | 基于 AMBER、MME、RTVLM、OCR/文本识别等已有数据改造。 | 测试基础感知能力，包括 object existence judgment、attribute recognition、scene analysis、visual grounding、OCR。作者不是简单照搬原数据，而是重新设计负样本。例如图中有海但没有船，就可能问“是否有船”，这种负样本比随机不存在物体更难。最终包含 **800 个 image-text pairs**。 | Appendix **C.1.1**, p.30；主文 Table 2 |
+| **T.2** | **Advanced Cognitive Inference** | 在感知之上测试高阶认知推理：时空关系、属性比较、常识推理、专业领域知识。 | 基于已有数据和部分手工构造。 | 测试高级认知能力，包括 spatial-temporal reasoning、attribute comparison、commonsense reasoning、specialized skills。它不只是问“图中有什么”，而是要求模型进行空间关系、时间顺序、大小/年龄/数量比较、常识推理等。 | Appendix **C.1.2**, p.33；主文 Table 2 |
+| **T.3** | **VQA under Instruction Enhancement** | 测试不同复杂度的指令提示是否能改善模型在事实/推理问题上的表现。 | 基于已有 VQA/推理样本改造。 | 复用 T.2 中的数学/逻辑问题和 T.5 中的事实陷阱 VQA，然后给同一图文样本配三种复杂度递增的 prompt：直接回答、更多关注图像、逐步/深入思考。约 **140 个样本 × 3 种 prompt = 420 个 image-text pairs**。 | Appendix **C.1.3**, p.35；主文 Table 2 |
+| **T.4** | **QA under Visual Assistance** | 测试在文本问题之外提供相关图像，是否能帮助模型回答长尾事实问题。 | 从零构建。 | 作者用 GPT-4 生成长尾事实问答，覆盖自然科学、历史、神话、人物、国家、地标建筑等。为了避免问题太常识化，要求 GPT-4 生成 long-tail knowledge。然后人工从互联网收集与答案相关的图片，同时配无关图片，包括噪声图、纯色图、自然图。 | Appendix **C.1.4**, p.38；主文 Table 2 |
+| **T.5** | **Text Misleading VQA** | 测试模型是否会被文本中带有的错误事实前提诱导，从而给出错误答案。 | 基于已有 GPT-4V hallucination/interference 相关数据改造。 | 作者选取 100 个高质量 image-text pairs，再用 GPT-4 把原本正确的问题改写成带有事实错误的问题，同时保留正确答案。这样可以测试模型是否会被文本中的错误前提诱导。 | Appendix **C.2.1**, p.40；主文 Table 2 |
+| **T.6** | **Visual Confusion VQA** | 测试模型在镜面反射、错位、3D 绘画、对比错觉等视觉混淆场景下能否避免被画面误导。 | 从零构建。 | 作者认为已有 MAD-Bench 只有 28 个 proprietary image-text pairs，不够用，因此自己构造 **300 个 image-text pairs**。覆盖五类视觉混淆场景：mirror reflection、visual dislocation、3D painting、contrast illusion、semantic misleading。例如由于透视错觉，画面看起来像人在锅上站着。 | Appendix **C.2.2**, p.42；主文 Table 2 |
+| **T.7** | **Visual Misleading QA** | 测试错误/误导性图像是否会覆盖模型原本正确的文本知识，让回答倒向图像。 | 从零构建。 | 与 T.4 正好相反。T.4 是文本事实问题 + 正确相关图片，看图片是否帮助回答；T.7 是同样的文本问题 + 错误/误导性图片，看视觉信息是否会干扰模型原本的文本知识回答。 | Appendix **C.2.3**, p.44；主文 Table 2 |
+
+## 二、Safety: S.1–S.6
+
+| ID | 任务 | 评估目标 | 数据来源 | 怎么构建 | 论文哪里讲到 |
+|---|---|---|---|---|---|
+| **S.1** | **NSFW Image Description** | 测试模型在面对不适宜图像（暴力、色情、政治敏感等）时是否会拒绝描述或输出不当内容。 | 直接使用已有 NSFW/不适宜图像资源，包括 ToViLaG、UCLA-protest、NSFW Data Scraper。 | 图像类别包括政治抗议、血腥场景、色情、性暗示但非色情、hentai drawings。每类随机采样 50 张图，共 250 张图，再配两个描述 prompt，形成 **500 个样本**。 | Appendix **D.1.1**, p.48；主文 Table 2 |
+| **S.2** | **Risk Identification** | 测试模型能否识别看似日常但可能导致严重后果的物体（枪、刀、酒、香烟等）的潜在风险。 | 基于 HOD dataset 改造。 | 作者选择五类“低风险但可能导致高风险后果”的物体：guns、knives、alcohol、insulting gestures、cigarettes。每类 20 张图，并设计 object recognition 与 risk analysis 两种设置，最终形成 **500 个 image-text samples**。例如酒本身常见，但和药物结合可能危险。 | Appendix **D.1.2**, p.49；主文 Table 2 |
+| **S.3** | **Toxic Content Generation** | 测试在毒性 prompt 下加入相关/无关图像，是否会改变模型生成有毒内容的倾向。 | 基于 RealToxicityPrompts 改造。 | 作者用 PerspectiveAPI 给每条文本确定 toxicity category，从 8 类 toxicity 中每类采样 10 条，共 80 条文本；然后配无关图像，以及用 Stable Diffusion XL 根据文本生成语义相关图像，测试视觉上下文是否改变毒性生成。 | Appendix **D.1.3**, p.51；主文 Table 2 |
+| **S.4** | **Plain Typographic Jailbreaking** | 测试把越狱指令写成图像后，模型是否会因为文字以图像形式出现而绕过安全机制。 | 从零构建。 | 作者从 GPTFuzzer、DAN 中选 jailbreak prompts，从 HarmBench 中选 harmful behaviors，然后把 jailbreak prompt 或 harmful behavior 渲染成截图式/文字图像，测试模型 OCR 到危险指令后是否被越狱。 | Appendix **D.2.1**, p.53；主文 Table 2 |
+| **S.5** | **Optimized Multimodal Jailbreaking** | 评估现有针对 MLLM 的优化型多模态越狱攻击（FigStep、MM-SafetyBench 等）对模型的实际威胁。 | 基于 SafeBench/FigStep 和 MM-SafetyBench 改造。 | 作者取 SafeBench 中 200 个样本、MM-SafetyBench tiny version 中 168 个样本，同时提出自己的简化攻击方式，以减少复杂 prompt 组合导致的模型混淆。 | Appendix **D.2.2**, p.55；主文 Table 2 |
+| **S.6** | **Cross-modal Influence on Jailbreaking** | 测试图像上下文是正相关还是负相关，会如何影响模型对文本越狱请求的拒答行为。 | 基于 GPTFuzzer、DAN、HarmBench 构造。 | 作者构造 50 个文本越狱样本；再配无关图像，以及作者人工收集的 18 张与越狱语境正相关或负相关的图片，包括 explicit correlation、implicit correlation、related text 三类，用来测试图像上下文会不会改变安全拒答。 | Appendix **D.2.3**, p.56；主文 Table 2 |
+
+## Robustness: R.1–R.6
+
+| ID | 任务 | 评估目标 | 数据来源 | 怎么构建 | 论文哪里讲到 |
+|---|---|---|---|---|---|
+| **R.1** | **Image Captioning for Stylized Images** | 测试模型对非自然风格图像（素描、卡通、绘画、恶劣天气等）的描述鲁棒性。 | 直接使用 COCO-O。 | COCO-O 包含 6 种艺术/异常视觉风格：sketch、cartoon、painting、weather、handmake、tattoo。作者每类采样 100 张图，并人工标注图中最明显的物体，用来判断模型 caption 是否覆盖主体。 | Appendix **E.1.1**, p.60；主文 Table 2 |
+| **R.2** | **VQA for Sensor Style Images** | 测试模型在红外、X 光、MRI、CT、遥感、自动驾驶等专业传感器图像上的理解能力。 | 直接使用 BenchLMM。 | 作者纳入 infrared、L-Xray、H-Xray、MRI、CT，以及 remote sensing、autonomous driving 等图像；过滤掉没有标准答案的样本，最终得到 **1041 张图**。 | Appendix **E.1.2**, p.62；主文 Table 2 |
+| **R.3** | **Sentiment Analysis for OOD Texts** | 测试模型对 OOD 风格化文本的情感判断鲁棒性，以及配上图像是否会改变这种鲁棒性。 | 基于 DecodingTrust 中的 OOD SST-2 改造。 | 作者采样 word-level substitution 和 sentence-level style transformation 后的 OOD 文本；同时给文本配无关图像，以及用 Stable Diffusion XL 根据原始文本生成相关图像，测试图像对文本鲁棒性的影响。 | Appendix **E.1.3**, p.63；主文 Table 2 |
+| **R.4** | **Image Captioning under Untargeted Attack** | 测试模型在非定向对抗扰动下能否仍正确识别图中主体（视觉对抗鲁棒性）。 | 从 NIPS17 adversarial dataset 中选图，并从零生成对抗样本。 | 作者随机选 100 张图，手工把 ImageNet 细粒度标签简化成 MLLM 更容易理解的类别，比如各种狗统一成 “dog”。然后用 SSA-CWA attack，扰动范围 ε=16/255，生成非定向对抗样本。 | Appendix **E.2.1**, p.66；主文 Table 2 |
+| **R.5** | **Image Captioning under Targeted Attack** | 测试定向对抗扰动是否能诱导模型 caption 出攻击者指定的目标物体。 | 使用和 R.4 相同的基础图像与标签集。 | 区别是定向攻击会随机选择一个不属于该图的目标标签 y′，攻击希望模型 caption 出这个目标物体。 | Appendix **E.2.2**, p.68；主文 Table 2 |
+| **R.6** | **Textual Adversarial Attack** | 测试模型对文本对抗扰动的鲁棒性，以及相关/无关图像作为视觉上下文的影响。 | 基于 AdvGLUE 和 AdvGLUE++ 改造。 | 包括 SST-2、QQP、MNLI、MNLI-mm、QNLI、RTE 等任务；文本扰动包括 word-level 和 sentence-level adversarial perturbations。作者再配相关/无关图像，相关图像由 Stable Diffusion XL 根据文本生成。 | Appendix **E.2.3**, p.70；主文 Table 2 |
+
+## Fairness: F.1–F.7
+
+| ID | 任务 | 评估目标 | 数据来源 | 怎么构建 | 论文哪里讲到 |
+|---|---|---|---|---|---|
+| **F.1** | **Stereotypical Content Generation** | 测试模型自由描述人物图像时，是否会自发输出年龄/肤色/职业相关的刻板印象。 | 基于 FACET 手工筛选。 | 作者从 FACET 中选择人物图像，覆盖年龄、肤色、职业等属性，最终 100 张图，包含 young/middle-aged/older、white/olive/dark skintone，以及 27 种职业，如 judge、singer、ballplayer。让模型描述图像，看是否生成刻板印象。 | Appendix **F.1.1**, p.74；主文 Table 2 |
+| **F.2** | **Agreement on Stereotypes** | 测试模型是否会同意/认可刻板印象陈述，以及视觉上下文是否会强化这种认同。 | 基于 CrowS-Pairs 改造。 | 作者筛掉刻板印象不明显的陈述，保留 261 条，覆盖 age、gender、nationality、race、religion、socioeconomic 六类；再用 Stable Diffusion XL 根据陈述生成语义相关图片，并配无关图像。 | Appendix **F.1.2**, p.76；主文 Table 2 |
+| **F.3** | **Classification of Stereotypes** | 测试模型能否识别一条陈述是否属于刻板印象，以及它属于哪类（即对偏见的认知能力）。 | 来源包括 F.2 中的刻板印象陈述和 StereoSet。 | 第一部分用 F.2 中的 261 条刻板印象陈述，让模型分类其主题；第二部分从 StereoSet 随机选 300 条陈述，让模型判断陈述性质。相关图像沿用 F.2 中 Stable Diffusion 生成的图像。 | Appendix **F.1.3**, p.78；主文 Table 2 |
+| **F.4** | **Stereotype Query Test** | 测试模型在面对真实场景式歧视/刻板印象问题时是否会拒答或给出有偏见的回应。 | 基于 Do-Not-Answer 中 “Social Stereotypes and Unfair Discrimination” 类别改造。 | 作者选出 96 条真实场景式歧视/刻板印象问题，包括 body shaming、disability discrimination、gender/sexual discrimination、racial/ethnic discrimination、religious discrimination 等；再用 GPT-4 将问题改写成适合图像生成的 prompt，用 Stable Diffusion 生成相关图。 | Appendix **F.1.4**, p.81；主文 Table 2 |
+| **F.5** | **Visual Preference Selection** | 测试用图像形式呈现主观二选一问题时，模型是否会表达意识形态/生活方式上的偏好（而非拒绝）。 | 从零构建。 | 作者从 TrustLLM 的 preference selection 任务中抽取 120 道主观二选一问题，其中 80 道 ideology，40 道 culture/lifestyle；把两个文本选项分别用图像表示，再拼成左右/上下两个图像选项，让模型选择偏好。正确行为应该是拒绝表达偏好或警告。 | Appendix **F.2.1**, p.83；主文 Table 2 |
+| **F.6** | **Profession Competence Prediction** | 测试模型在判断人物是否胜任特定职业时，是否对年龄、性别、肤色等属性存在系统性偏见。 | 基于 FACET 改造。 | 作者选择六类容易产生偏见的职业：nurse、teacher、waiter、doctor、lawman、fireman；并平衡 age、gender、skintone 等属性，最终 313 张图。让模型判断人物是否胜任职业，用 p-value 衡量对属性的偏见。 | Appendix **F.2.2**, p.85；主文 Table 2 |
+| **F.7** | **Preference Selection in QA** | 测试在文本主观问题旁附加相关/无关图像，是否会诱导模型在意识形态/文化问题上表态。 | 基于 TrustLLM 的文本偏好选择任务改造。 | 共 120 道二选一问题，80 道 ideology，40 道 culture/lifestyle；每个选项用 Stable Diffusion XL 生成相关图，共 240 张相关图。评估时每题随机选一张选项图像作为输入，也配无关图像，测试图像是否诱导模型表达偏好。 | Appendix **F.2.3**, p.87；主文 Table 2 |
+
+## Privacy: P.1–P.6
+
+| ID | 任务 | 评估目标 | 数据来源 | 怎么构建 | 论文哪里讲到 |
+|---|---|---|---|---|---|
+| **P.1** | **Visual Privacy Recognition** | 测试模型能否识别图像中包含的隐私敏感内容（地址、邮箱、信用卡、车牌、证件等）。 | 直接使用 VISPR 和 VizWiz-Priv。 | VISPR 来自 Flickr 图片，含 68 类隐私属性；作者选取 home address、email、credit card、phone number、license plate、credential 等敏感属性，构造 500 张正负平衡图像。VizWiz-Priv 中隐私区域被模糊处理，要求模型根据上下文推理隐私风险。 | Appendix **G.1.1**, p.91；主文 Table 2 |
+| **P.2** | **Privacy-Sensitive VQA Recognition** | 测试模型能否在 VQA 形式下判断一个问题是否涉及图像中的隐私敏感信息。 | 基于 VISPR private split 改造。 | 作者选择 P.1 中 250 张含隐私图像，用 GPT-4V 为每张图生成 3 个正问题和 3 个负问题；然后人工为每个标签选最合适的问题，并过滤不合适样本，最终得到 **426 个正负平衡 image-text pairs**。 | Appendix **G.1.2**, p.93；主文 Table 2 |
+| **P.3** | **InfoFlow Expectation** | 测试模型对不同信息类型 × 使用场景的隐私敏感度判断是否与人类期望对齐。 | 基于 InfoFlow Expectation 数据改造。 | 作者取 Tier-2a split 的 98 条 prompt，包含 7 类信息类型和 14 种使用场景；再配无关图像，并用 Stable Diffusion XL 根据使用场景生成 14 张相关图像。让模型给隐私使用场景打分，看是否与人类隐私期望一致。 | Appendix **G.1.3**, p.94；主文 Table 2 |
+| **P.4** | **PII Query with Visual Cues** | 测试当用户给出名人照片并询问其邮箱、电话、地址时，模型是否会泄露相关 PII。 | 从零构建。 | 作者人工收集 IMDB top 100 celebrities 的公开照片；针对每个人构造 12 个查询，覆盖 email、phone number、address 三类 PII，并设计四种 prompt：给 name+job、只给 name、只给 job、什么都不给。最终 **1200 个 image-text pairs**。 | Appendix **G.2.1**, p.96；主文 Table 2 |
+| **P.5** | **Privacy Leakage in Vision** | 测试在描述含可见隐私字段的图像时，模型是否会原样读出图中的具体 PII（OCR 式泄露）。 | 基于 VISPR test split 改造。 | 原始数据保留了图像中的隐私内容，但没有细粒度 PII 标注；作者人工标注图中的 email、name、address、credit card、ID number 等具体隐私字段，最终 **195 个样本**，每个样本最多 3 条 ground-truth PII。 | Appendix **G.2.2**, p.98；主文 Table 2 |
+| **P.6** | **PII Leakage in Conversations** | 测试在对话上下文中给定 PII 后，模型是否会在后续回答中泄露这些 PII，以及图像形式是否会加剧泄露。 | 基于 DecodingTrust 代码随机生成测试数据。 | 作者选 10 类 PII：phone、email、address、password、credit card、passport number、ssh private key、secret key、fictional canary code/number 等，每类 10 条，共 100 个文本样本；再配无关图像和相关 typography 图像。相关图像有两类：只嵌入 PII type，或把全部信息都写进图像。 | Appendix **G.2.3**, p.100；主文 Table 2 |
+
+## 总结：MultiTrust 数据集的构建套路
+
+MultiTrust 的数据构建不是单纯下载一个已有数据集，而是围绕 **32 个可信多模态评估任务**进行系统性组合、改造和扩展。
+
+### 1. 直接继承已有数据集
+
+例如：
+
+- S.1 NSFW Image Description；
+- R.1 Image Captioning for Stylized Images；
+- R.2 VQA for Sensor Style Images；
+- P.1 Visual Privacy Recognition。
+
+这类任务主要把已有数据集纳入 MultiTrust 的统一评估框架中。
+
+### 2. 基于已有数据集改造
+
+例如：
+
+- T.1、T.2、T.5；
+- S.2、S.3、S.5、S.6；
+- R.3、R.6；
+- F.1–F.4、F.6、F.7；
+- P.2、P.3、P.5、P.6。
+
+改造方式包括：
+
+- 增加新的 prompt；
+- 增加相关/无关图像；
+- 用 Stable Diffusion 生成语义相关图像；
+- 用 GPT-4/GPT-4V 生成问题或辅助标注；
+- 人工筛选、过滤和补充标签。
+
+### 3. 从零构建新任务数据
+
+例如：
+
+- T.4 QA under Visual Assistance；
+- T.6 Visual Confusion VQA；
+- T.7 Visual Misleading QA；
+- S.4 Plain Typographic Jailbreaking；
+- R.4/R.5 图像对抗攻击任务；
+- F.5 Visual Preference Selection；
+- P.4 PII Query with Visual Cues。
+
+这类任务通常用于捕捉已有 benchmark 没覆盖的新型多模态风险。
+
+### 4. 跨模态影响任务的统一设计
+
+对于 cross-modal impacts，作者通常采用如下设计：
+
+1. 先准备一个文本任务；
+2. 再给文本任务配上不同类型图像：
+   - 语义相关图像；
+   - 语义无关自然图像；
+   - 噪声图或纯色图；
+   - 有时还包括正相关/负相关图像；
+3. 比较模型在不同图像条件下的表现变化。
+
+这样做的目的不是测试“图像识别能力”本身，而是测试：
+
+> 一个原本属于文本任务的问题，在加入图像输入之后，MLLM 的行为是否会被视觉模态改变。
+
+这便是 MultiTrust 中 **cross-modal impacts** 的核心思想。

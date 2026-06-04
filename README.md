@@ -102,6 +102,12 @@
 - **LLM-as-Judge**
   - Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena
   - JudgeLM
+- **Trustworthiness（可信性）**
+  - MultiTrust（MLLM 可信性评测基准）
+  - LVLMs-Saliency（基于 attention×gradient 的幻觉检测）
+  - forward-pass attention（前向传播 attention 幻觉检测方法）
+  - training-free methods（免训练幻觉缓解方法总结）
+  - 常见解码策略
 
 ## Paper Code
 

@@ -84,6 +84,7 @@
   - OpenVLA
   - RT-2
   - BitVLA
+  - RobustVLA（VLA 多模态扰动鲁棒性评测与鲁棒微调框架）
 - **RL**
   - Overview（强化学习综述）
   - Preference Learning（偏好学习）

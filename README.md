@@ -74,6 +74,7 @@
   - MME-Survey（多模态评测综述）
   - Multimodal Evaluation Notes（多模态评测笔记）
   - Multimodal Notes 1
+  - BEAT（面向 VLM 具身智能体的视觉后门攻击与对比触发学习）
   - 多模态论文复习
 - **NLP**
   - Transformer
@@ -85,6 +86,7 @@
   - RT-2
   - BitVLA
   - RobustVLA（VLA 多模态扰动鲁棒性评测与鲁棒微调框架）
+  - VIRF（神经符号框架：将生成式规划器约束于可验证逻辑的可信具身 AI）
 - **RL**
   - Overview（强化学习综述）
   - Preference Learning（偏好学习）

@@ -150,3 +150,83 @@ Where:
 - $\mathcal{L}_{\pi_0}$: The input perturbation robustness loss;
 - $\mathcal{L}_{\pi_0}$: The action output perturbation robustness loss.
 
+# 5. How to Add Action Noise
+
+The essence of Action Noise is: the VLA first outputs the action normally, and then, before sending it to the simulation environment or the real robotic arm for execution, this action is artificially corrupted.
+
+It is not added to the image, nor is it added to the language; rather, it is applied at:
+$$
+A_t \rightarrow \hat{A}_t
+$$
+Where:
+- $A_t$: The clean action originally output by the model.
+- $\hat{A}_t$: The action actually executed after adding Action Noise.
+  
+In Appendix A.1, the paper defines 5 types of action uncertainties: Uniform Noise, Gaussian Noise, Action Bias, Random Flips, and Sudden Spikes. These are utilized to simulate real-world robot execution errors such as sensorimotor noise, actuator wear, and unexpected perturbations.
+
+## 5.1 Where in the Control Pipeline is Action Noise Applied?
+
+The original VLA execution pipeline is:
+$$
+o_t \rightarrow \text{VLA} \rightarrow A_t \rightarrow \text{Robot/Env}
+$$
+
+After incorporating Action Noise, it becomes:
+$$
+o_t \rightarrow \text{VLA} \rightarrow A_t \rightarrow \text{Action Noise} \rightarrow \hat{A}_t \rightarrow \text{Robot/Env}
+$$
+
+That is to say, the model itself is completely unaware that its actions have been modified.
+
+The model assumes it has output:
+$$
+A_t
+$$
+
+But what the robot actually executes is:
+$$
+\hat{A}_t
+$$
+
+## 5.2 How is Action Noise Applied to OpenVLA's Action Tokens?
+
+Internally, OpenVLA first outputs discrete action tokens, for example:
+
+$$Z_t = [140, \; 125, \; 128, \; 129, \; 128, \; 124, \; 190]$$
+
+These tokens are first decoded into continuous actions:
+
+$$A_t = \text{Decode}(Z_t)$$
+
+Suppose we obtain a 7-dimensional action after decoding:
+
+$$A_t = [0.10, \; -0.02, \; 0.00, \; 0.01, \; 0.00, \; -0.03, \; 0.50]$$
+
+Action Noise is not directly added to the token IDs; instead, it is applied to the continuous action $A_t$ **after decoding**.
+
+That is to say:
+
+$$Z_t \rightarrow A_t \rightarrow \hat{A}_t \rightarrow \text{Env}$$
+
+Where:
+
+$$\hat{A}_t = \text{ActionNoise}(A_t)$$
+
+All five types of Action Noise defined in the paper are applied as modifications to this continuous action vector.
+
+## 5.3 How is it Applied to $\pi_0$'s Action Chunk?
+
+If the model outputs a sequence of actions all at once:
+
+$$A_t = [a_t, \; a_{t+1}, \; \dots, \; a_{t+H}]$$
+
+It can be conceptualized as a matrix:
+
+$$A_t \in \mathbb{R}^{H \times d}$$
+
+For example, looking at just 3 time steps and 2 dimensions:
+
+$$A_t = \begin{bmatrix} 0.10 & -0.02 \\ 0.08 & -0.01 \\ 0.05 & 0.00 \end{bmatrix}$$
+
+Action Noise is then applied element-wise to this matrix.
+

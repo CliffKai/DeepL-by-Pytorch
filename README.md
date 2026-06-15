@@ -87,6 +87,7 @@
   - BitVLA
   - RobustVLA（VLA 多模态扰动鲁棒性评测与鲁棒微调框架）
   - VIRF（神经符号框架：将生成式规划器约束于可验证逻辑的可信具身 AI）
+  - ActionExpert（OpenVLA 离散 token 与 π0 Flow Matching 两种动作输出范式对比）
 - **RL**
   - Overview（强化学习综述）
   - Preference Learning（偏好学习）
